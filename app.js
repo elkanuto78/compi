@@ -85,14 +85,15 @@ $('#start').onclick=()=>{
   else say('bot','Listo, actualicé tus gustos.');
   save();showMain();
 };
-function showMain(){$('#onb').hidden=true;$('#main').hidden=false;renderChat();renderAgenda();notifStatus();setTimeout(check,300)}
+function showMain(){$('#onb').hidden=true;$('#main').hidden=false;renderChat();renderAgenda();notifStatus();setTimeout(check,300);if(window.onMain)onMain()}
 
 /* ---------- Tabs ---------- */
 function tab(w){
-  ['chat','ag','mood'].forEach(x=>{$('#v-'+x).classList.toggle('on',w===x);$('#tab-'+x).setAttribute('aria-selected',w===x)});
+  ['chat','ag','mood','help'].forEach(x=>{$('#v-'+x).classList.toggle('on',w===x);$('#tab-'+x).setAttribute('aria-selected',w===x)});
   if(w==='mood')renderMood();
+  if(window.onTab)onTab(w);
 }
-$('#tab-chat').onclick=()=>tab('chat');$('#tab-ag').onclick=()=>tab('ag');$('#tab-mood').onclick=()=>tab('mood');
+$('#tab-chat').onclick=()=>tab('chat');$('#tab-ag').onclick=()=>tab('ag');$('#tab-mood').onclick=()=>tab('mood');$('#tab-help').onclick=()=>tab('help');
 $('#edit').onclick=showOnb;
 
 /* ---------- Chat ---------- */
@@ -725,7 +726,7 @@ $('#c-add').onclick=()=>{
 function showNote(title,body,tag){
   try{
     if(typeof Notification==='undefined'||Notification.permission!=='granted')return;
-    const o={body,tag:tag||'compi',icon:'icon-192.png',badge:'icon-192.png'};
+    const o={body,tag:tag||'compi',icon:'icon-192.png',badge:'icon-192.png',vibrate:[200,100,200]};
     if('serviceWorker' in navigator)navigator.serviceWorker.ready.then(r=>r.showNotification(title,o)).catch(()=>{try{new Notification(title,o)}catch(x){}});
     else new Notification(title,o);
   }catch(x){}
@@ -750,6 +751,7 @@ async function unsubPush(){
   }catch(e){}
 }
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.type==='sound')beep()});
 function notifStatus(){
   const s=$('#n-status'),b=$('#n-btn');
   if(typeof Notification==='undefined'){s.textContent='Tu navegador no permite notificaciones. Verás los avisos dentro de la página.';b.hidden=true;return}
@@ -764,10 +766,15 @@ $('#n-btn').onclick=()=>{
 function toast(msg){
   const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,8000);
 }
-function beep(){
+const SND=new Audio('notificacion.mp3');SND.preload='auto';
+function beepOld(){
   try{const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();
     o.frequency.value=880;g.gain.value=.15;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.35)}catch(e){}
 }
+function beep(){
+  try{SND.currentTime=0;const p=SND.play();if(p&&p.catch)p.catch(()=>{})}catch(e){beepOld()}
+}
+SND.addEventListener('error',()=>{SND.play=()=>{beepOld();return Promise.resolve()}});
 function check(){
   if(!prof)return;
   const now=Date.now();let changed=false;
@@ -823,6 +830,7 @@ function renderMood(){
   }
   const has=events.some(e=>e.title==='Check-in de ánimo'&&e.repeat&&!e.done);
   $('#m-daily').textContent=has?'Check-in diario activado':'Recordarme cada día a las 8 pm';$('#m-daily').disabled=has;
+  if(window.onMood)onMood();
 }
 $('#m-daily').onclick=()=>{const d=new Date();d.setHours(20,0,0,0);if(d<=new Date())d.setDate(d.getDate()+1);addEvent('Check-in de ánimo',d,'daily');renderMood()};
 let brT=null,brN=0;
@@ -856,6 +864,7 @@ function setMode(m){
   $('#a-go').textContent=m==='in'?'Iniciar sesión':m==='up'?'Crear cuenta':'Guardar contraseña';
   $('#a-swap').textContent=m==='in'?'¿Eres nuevo? Crea tu cuenta':'¿Ya tienes cuenta? Inicia sesión';
   $('#a-pw').autocomplete=m==='in'?'current-password':'new-password';
+  $('#a-consent').hidden=m!=='up';
   $('#a-err').textContent='';$('#a-err').className='err';
 }
 $('#a-swap').onclick=()=>setMode(mode==='in'?'up':'in');
@@ -903,6 +912,8 @@ async function cloudGo(email,p){
 async function authGo(){
   const u=$('#a-user').value.trim().toLowerCase(),p=$('#a-pw').value,err=$('#a-err');
   err.className='err';
+  if(mode==='up'&&!$('#a-ok').checked){err.textContent='Para crear tu cuenta debes aceptar el aviso de privacidad.';return}
+  window._consentOk=mode==='up';
   if(CLOUD)return cloudGo(u,p);
   if(!/^[a-z0-9_.-]{3,20}$/.test(u)){err.textContent='El usuario debe tener de 3 a 20 letras, números, punto o guion.';return}
   if(p.length<6){err.textContent='La contraseña debe tener al menos 6 caracteres.';return}
