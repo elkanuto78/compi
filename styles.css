@@ -172,3 +172,7 @@ a.btn[hidden]{display:none}
 .calm-btn{display:inline-flex;align-items:center;gap:6px}
 .calm-btn .ico svg{width:18px;height:18px}
 #menu-x .ico svg{width:20px;height:20px}
+.tip{background:var(--chip);border-radius:16px;padding:12px 14px;margin-top:12px}
+.tip ul{margin:0;padding-left:18px}
+.tip li{margin:6px 0;line-height:1.45}
+.tip .empty{margin:8px 0 0;font-size:13px}
