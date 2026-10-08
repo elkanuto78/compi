@@ -196,6 +196,41 @@ function renderHabits(){
   const ct2=el('b','',String(n));ct2.style.minWidth='2ch';ct2.style.textAlign='center';
   r.append(mn,ct2,pl);w.appendChild(r);box.appendChild(w);
   grp('¿Te moviste hoy?',MOVE,'move');
+  const tb=el('button','btn alt');tb.type='button';tb.setAttribute('aria-expanded',String(tipOpen));
+  const ic=el('span','ico');ic.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>';
+  tb.style.display='inline-flex';tb.style.alignItems='center';tb.style.gap='8px';
+  tb.append(ic,document.createTextNode(tipOpen?'Ocultar consejo':'Ver consejo para hoy'));
+  tb.onclick=()=>{tipOpen=!tipOpen;renderHabits()};
+  box.appendChild(tb);
+  if(tipOpen){
+    const p=el('div','tip');p.setAttribute('aria-live','polite');
+    const ul=el('ul','');dayTips().forEach(t=>ul.appendChild(el('li','',t)));
+    p.append(ul,el('p','empty','Consejos generales, no reemplazan a un profesional de salud.'));
+    box.appendChild(p);
+  }
+}
+let tipOpen=false;
+const GEN=['Respira lento durante un minuto: inhala 4 segundos, exhala 6.','Sal a la luz natural unos minutos; ayuda al ánimo y al sueño.','Escríbele a alguien que aprecias, aunque sea un mensaje corto.','Divide lo que tienes pendiente en pasos pequeños y haz solo el primero.','Date un descanso de pantallas de 10 minutos y estira el cuerpo.','Anota tres cosas que salieron bien hoy, por pequeñas que sean.','Toma agua y come algo con calma, sin distracciones.'];
+function dayTips(){
+  const t=habits()[dk(Date.now())]||{},out=[];
+  if(t.sleep===4)out.push('Dormiste poco. Hoy puede costar más concentrarte: haz pausas, evita la cafeína por la tarde y, si puedes, una siesta corta de 20 minutos. Esta noche intenta acostarte un poco antes.');
+  else if(t.sleep===5.5)out.push('Dormiste algo menos de lo ideal. Apagar las pantallas 30 minutos antes de dormir ayuda a descansar mejor.');
+  else if(t.sleep===7.5)out.push('Buen descanso. Mantener horarios parecidos para dormir y despertar ayuda a sostenerlo.');
+  else if(t.sleep===9.5)out.push('Dormiste bastante. Si varios días seguidos duermes mucho y aun así te sientes sin energía, vale la pena comentarlo con un profesional de salud.');
+  if(t.water!==undefined){
+    if(t.water<=2)out.push('Llevas pocos vasos de agua. Deja un vaso a mano y toma uno ahora.');
+    else if(t.water<6)out.push('Vas bien con el agua. Intenta llegar a 6 vasos o más durante el día.');
+    else out.push('Meta de agua cumplida. ¡Sigue así!');
+  }
+  if(t.move===0)out.push('Aunque sean 10 minutos de caminata, moverte ayuda a despejar la mente.');
+  else if(t.move===1)out.push('Bien por moverte. Si puedes, esta semana prueba alargarlo a unos 30 minutos.');
+  else if(t.move===2)out.push('Excelente, moverte mucho ayuda al ánimo. No olvides estirar e hidratarte.');
+  const ts=Date.now(),S=new Date();S.setHours(0,0,0,0);
+  const td=moods.filter(m=>m.t>=S.getTime()&&m.t<S.getTime()+D).map(m=>m.v);
+  if(td.length&&mean(td)<-.5)out.push('Hoy parece un día más pesado. Un paseo corto, luz natural o hablar con alguien de confianza pueden aliviar. En Calmar tienes ejercicios guiados.');
+  if(!out.length)out.push('Registra tu sueño, agua y movimiento y te doy consejos para hoy.');
+  out.push(GEN[Math.floor(ts/D)%GEN.length]);
+  return out;
 }
 function dayMoods(){
   const o={};moods.forEach(m=>{(o[dk(m.t)]||(o[dk(m.t)]=[])).push(m.v)});
