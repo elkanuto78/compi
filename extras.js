@@ -46,7 +46,7 @@ function startBreath(){
   const b=$('#calm-b');b.innerHTML='';$('#calm-t').textContent='Respirar con calma';
   const orb=el('div','orb'),tx=el('p','empty','');tx.style.textAlign='center';tx.setAttribute('aria-live','polite');
   const st=el('button','btn alt','Detener');st.type='button';
-  b.append(orb,tx,el('div','row')).lastChild.appendChild(st);b.lastChild.style.justifyContent='center';
+  const rw=el('div','row');rw.style.justifyContent='center';rw.appendChild(st);b.append(orb,tx,rw);
   let n=0;
   const step=()=>{
     if(n>=12){calmEnd();return}
