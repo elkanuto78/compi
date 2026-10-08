@@ -480,7 +480,11 @@ function talk(text){
     else if(/gracias/.test(t))body.push(pick([`¡Con gusto, ${n}! 😊`,'Para eso estoy. Cuando quieras, aquí sigo.']));
     else if(/\b(chao|adios|hasta luego|nos vemos)\b/.test(t))body.push(`¡Hasta luego, ${n}! Cuídate mucho. 👋`);
     else if(learned)body.push(`Qué bien, ${n}. ¿Desde cuándo te gusta?`);
-    else if(A.kw.length)body.push(`Cuéntame más sobre ${A.kw.slice(0,2).join(' y ')}.${f('act')?` Por cierto, ¿hiciste algo de ${f('act')} últimamente?`:''}`);
+    else if(/\b(que me recomiendas|que (puedo|podria) hacer|que hago|dame una idea|alguna idea|recomiendame algo)\b/.test(t)){
+      const lm=moods.reduce((a,b)=>!a||new Date(b.t)>new Date(a.t)?b:a,null),low=(A.top&&A.top.v<0)||(lm&&Date.now()-new Date(lm.t)<3*36e5&&lm.v<0);
+      body.push(low?`Algo suave para ahora, ${n}: respira lento un par de minutos (en la pestaña Ánimo hay un ejercicio), toma agua y sal a caminar unos 10 minutos${f('music')?`, con algo de ${f('music')} de fondo`:''}. Y si te pesa mucho, contárselo a alguien de confianza ayuda. ¿Cuál te late más?`:`Podrías ${f('act')?'dedicarte un rato a '+f('act'):'salir a caminar un rato'}${f('music')?`, con ${f('music')} de fondo`:''}. ¿Te dejo un recordatorio para hacerlo?`);
+    }
+    else if(A.kw.length)body.push(pick([`Te escucho, ${n}. ¿Qué es lo que más te ronda la cabeza ahora?`,`Cuéntame con calma, ${n}. ¿Cómo te hizo sentir eso?`,`Gracias por contármelo. ¿Qué fue lo más difícil de eso para ti?`,`Aquí estoy. ¿Quieres seguir contándome o prefieres que te proponga algo para despejarte?`]));
     else body.push(pick(['Te escucho. ¿Quieres que te anote algo en la agenda?','Cuéntame más, estoy atento.']));
   }else if(GREET)body[0]=`¡Hola, ${n}! `+body[0];
   if(GREET&&notes.length&&!/^¡Hola/.test(body[0]||'')){notes[0]=`¡Hola, ${n}! `+notes[0]}
