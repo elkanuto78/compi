@@ -165,7 +165,11 @@ async function askAI(text){
   const body={messages:msgs,profile:{name:prof.name,music:prof.music,food:prof.food,act:prof.act},mood:A.top?A.top.k:''};
   const res=await Promise.race([sb.functions.invoke('compi-chat',{body}),new Promise((_,rj)=>setTimeout(()=>rj(new Error('timeout')),20000))]);
   if(res.error||!res.data||typeof res.data.text!=='string'||!res.data.text.trim())throw(res.error||new Error('empty'));
-  return res.data.text.trim();
+  return cleanAI(res.data.text);
+}
+function cleanAI(t){
+  return t.replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g,'($1)/($2)').replace(/\\cdot/g,'·').replace(/\\(ln|log|sin|cos|tan)\b/g,'$1').replace(/\\[()\[\]]/g,'').replace(/\$+/g,'').replace(/[{}]/g,'')
+    .replace(/\*\*|__/g,'').replace(/^#{1,6}\s+/gm,'').replace(/^\s*[*-]\s+/gm,'• ').replace(/\n{3,}/g,'\n\n').trim();
 }
 function send(text){
   text=text.trim();if(!text||busy)return;
