@@ -610,9 +610,9 @@ function cleanTitle(orig){
     }
   }
   let s=o.replace(/\s+/g,' ').trim();
-  for(let i=0;i<10;i++){const x=s.replace(/^(s[ií]|quisiera|quiero|necesito|por favor|porfa|oye|compi|que|me|te|de|para|tengo que|tenga que|tenemos que|debo|hay que|toca)[,\s]+/i,'');if(x===s)break;s=x}
+  for(let i=0;i<10;i++){const x=s.replace(/^(s[ií]|quisiera|quiero|necesito|por favor|porfa|oye|compi|puedes|puede|podrias|podria|ayudame a|ayudame|agendame|que|me|te|de|para|tengo que|tenga que|tenemos que|debo|hay que|toca)[,\s]+/i,'');if(x===s)break;s=x}
   for(let i=0;i<5;i++){const x=s.replace(/\s+(a|de|en|para|que|y)$/i,'');if(x===s)break;s=x}
-  s=s.replace(/^[.,;:\s]+|[.,;:\s]+$/g,'');
+  s=s.replace(/^[.,;:¿?¡!\s]+|[.,;:¿?¡!\s]+$/g,'');
   return s?s[0].toUpperCase()+s.slice(1):'Recordatorio';
 }
 function remind(text,t,implicit){
