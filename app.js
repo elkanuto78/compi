@@ -158,6 +158,8 @@ function renderChat(){
 }
 let busy=false;
 function typing(on){const o=$('#typing');if(o)o.remove();if(!on)return;const d=document.createElement('div');d.id='typing';d.className='b bot typing';d.setAttribute('aria-label','Compi está escribiendo');d.innerHTML='<i></i><i></i><i></i>';const box=$('#msgs');box.appendChild(d);box.scrollTop=box.scrollHeight}
+let aiWarned=false;
+function aiNote(){if(aiWarned)return;aiWarned=true;toast('Compi está en modo básico por ahora')}
 async function askAI(text){
   const msgs=chat.slice(-12).map(m=>({role:m.who==='me'?'user':'assistant',content:m.text}));
   while(msgs.length&&msgs[0].role!=='user')msgs.shift();
@@ -183,7 +185,7 @@ function send(text){
           out=await askAI(text);offer=null;
           const keep=r.local.match(/^(Anoté|Listo, quité).*$/gm)||[];
           if(keep.length)out+='\n\n'+keep.join('\n');
-        }catch(e){out=r.local}
+        }catch(e){console.warn('IA no disponible:',e);aiNote();out=r.local}
         say('bot',out);
       }else if(typeof r==='object')say('bot',r.text,{crisis:true,links:r.links});
       else say('bot',r);
@@ -538,6 +540,7 @@ function talk(text){
       const lm=moods.reduce((a,b)=>!a||new Date(b.t)>new Date(a.t)?b:a,null),low=(A.top&&A.top.v<0)||(lm&&Date.now()-new Date(lm.t)<3*36e5&&lm.v<0);
       body.push(low?`Algo suave para ahora, ${n}: respira lento un par de minutos (en la pestaña Ánimo hay un ejercicio), toma agua y sal a caminar unos 10 minutos${f('music')?`, con algo de ${f('music')} de fondo`:''}. Y si te pesa mucho, contárselo a alguien de confianza ayuda. ¿Cuál te late más?`:`Podrías ${f('act')?'dedicarte un rato a '+f('act'):'salir a caminar un rato'}${f('music')?`, con ${f('music')} de fondo`:''}. ¿Te dejo un recordatorio para hacerlo?`);
     }
+    else if(/\?|^(cual|cuales|que|como|cuanto|cuando|donde|quien|por que|porque|puedes|me puedes|sabes|dime|responde)\b/.test(t))body.push(pick([`Esa pregunta se me escapa por ahora, ${n}: mi parte de IA no está respondiendo. Puedo escucharte, guardar recordatorios o ayudarte a calmarte. ¿Cómo te sientes?`,`Ahora mismo no puedo responder eso bien, ${n}. Sí puedo acompañarte, anotar recordatorios o proponerte un ejercicio para calmarte. ¿Qué prefieres?`]));
     else if(A.kw.length)body.push(pick([`Te escucho, ${n}. ¿Qué es lo que más te ronda la cabeza ahora?`,`Cuéntame con calma, ${n}. ¿Cómo te hizo sentir eso?`,`Gracias por contármelo. ¿Qué fue lo más difícil de eso para ti?`,`Aquí estoy. ¿Quieres seguir contándome o prefieres que te proponga algo para despejarte?`]));
     else body.push(pick(['Te escucho. ¿Quieres que te anote algo en la agenda?','Cuéntame más, estoy atento.']));
   }else if(GREET)body[0]=`¡Hola, ${n}! `+body[0];
