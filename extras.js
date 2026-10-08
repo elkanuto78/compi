@@ -11,9 +11,11 @@ function openM(m){lastFocus=document.activeElement;m.hidden=false;const f=m.quer
 function closeM(m){m.hidden=true;if(lastFocus&&lastFocus.focus)lastFocus.focus()}
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape')return;
-  const c=$('#calm'),p=$('#priv');
-  if(!c.hidden){stopCalm();closeM(c)}
+  const c=$('#calm'),p=$('#priv'),m=$('#menu'),f=$('#conf');
+  if(!f.hidden)closeM(f);
+  else if(!c.hidden){stopCalm();closeM(c)}
   else if(!p.hidden&&!p.dataset.req)closeM(p);
+  else if(!m.hidden)menuClose();
 });
 
 let ct=null;
@@ -94,7 +96,7 @@ const PRIV=[
   ['Lo que Compi no es',[
     'Compi es un acompañante: no hace diagnósticos ni reemplaza a un psicólogo o psiquiatra. En una emergencia llama al 113 (opción 3 y luego 5), al 105 o al 106.']],
   ['Tu control',[
-    'Puedes borrar tu cuenta y todos tus datos en Ánimo → «Borrar mi cuenta y mis datos». Las notificaciones se pueden desactivar en tu navegador.',
+    'Puedes borrar tu cuenta y todos tus datos en Menú → Mi cuenta → «Borrar mi cuenta y mis datos». Las notificaciones se pueden desactivar en tu navegador.',
     'Si no estás de acuerdo con este aviso, no crees una cuenta.']]
 ];
 function showPriv(req){
@@ -234,8 +236,69 @@ function renderIns(){
 }
 window.onMood=()=>{renderHabits();renderIns()};
 
-function helpUi(){trustedUi();pinUi()}
-window.onTab=w=>{if(w==='help')helpUi()};
+const applyTheme=t=>{if(t==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=t};
+const themeNow=()=>store.get('compi_theme','auto');
+function themeUi(){['auto','light','dark'].forEach(t=>$('#th-'+t).setAttribute('aria-pressed',String(themeNow()===t)))}
+['auto','light','dark'].forEach(t=>{$('#th-'+t).onclick=()=>{store.set('compi_theme',t);applyTheme(t);themeUi()}});
+applyTheme(themeNow());
+
+function confirmM(title,text,okLabel,fn){
+  $('#conf-t').textContent=title;$('#conf-d').textContent=text;$('#conf-ok').textContent=okLabel;
+  const f=$('#conf');
+  $('#conf-no').onclick=()=>closeM(f);
+  $('#conf-ok').onclick=()=>{closeM(f);fn()};
+  openM(f);$('#conf-no').focus();
+}
+function resetChat(){
+  confirmM('¿Reiniciar la conversación?','Se borrará el historial del chat en este dispositivo. Tus recordatorios, registros de ánimo y gustos no se tocan.','Reiniciar',()=>{
+    chat=[];try{offer=null;pending=null}catch(e){}
+    save();say('bot','Empecemos de nuevo, '+first(prof&&prof.name,'amigo')+'. ¿Cómo te sientes hoy?');tab('chat');toast('Conversación reiniciada');
+  });
+}
+const MN=$('#menu');
+function menuClose(){closeM(MN);$('#menu-open').setAttribute('aria-expanded','false')}
+$('#menu-open').onclick=()=>{$('#menu-who').textContent=(prof&&prof.name)||'Compi';openM(MN);$('#menu-open').setAttribute('aria-expanded','true')};
+$('#menu-x').onclick=menuClose;
+MN.addEventListener('click',e=>{if(e.target===MN)menuClose()});
+const ACTS={
+  calm:()=>{calmMenu();openM($('#calm'))},
+  help:()=>tab('help'),
+  acct:()=>tab('acct'),
+  likes:()=>showOnb(),
+  reset:resetChat,
+  priv:()=>showPriv(false),
+  out:()=>$('#out').click()
+};
+MN.querySelectorAll('[data-act]').forEach(b=>{b.onclick=()=>{menuClose();ACTS[b.dataset.act]()}});
+document.querySelectorAll('[data-go]').forEach(b=>{b.onclick=()=>tab(b.dataset.go)});
+$('#ac-reset').onclick=resetChat;
+$('#ac-likes').onclick=()=>showOnb();
+$('#ac-name-save').onclick=()=>{
+  const nm=$('#ac-name').value.trim(),e=$('#ac-name-err');e.className='err';
+  if(!nm){e.textContent='Escribe tu nombre.';return}
+  if(nm.length>60||isBad(nm)){e.textContent='Ese nombre no es válido. Escribe otro.';return}
+  prof=Object.assign({},prof,{name:nm});save();e.textContent='';toast('Nombre actualizado');
+};
+$('#ac-pw-save').onclick=async()=>{
+  const a=$('#ac-pw1').value,b=$('#ac-pw2').value,e=$('#ac-pw-err');e.className='err';
+  if(a.length<6){e.textContent='La contraseña debe tener al menos 6 caracteres.';return}
+  if(a!==b){e.textContent='Las contraseñas no coinciden.';return}
+  try{
+    const{error}=await sb.auth.updateUser({password:a});
+    if(error){e.textContent=authMsg(error);return}
+    $('#ac-pw1').value='';$('#ac-pw2').value='';e.className='empty';e.textContent='Contraseña actualizada.';
+  }catch(x){e.textContent='No hay conexión. Intenta de nuevo.'}
+};
+async function acctUi(){
+  $('#ac-name').value=(prof&&prof.name)||'';$('#ac-name-err').textContent='';$('#ac-pw-err').textContent='';
+  $('#ac-pwcard').hidden=!CLOUD;
+  let who=cur||'';
+  if(CLOUD){try{const{data}=await sb.auth.getUser();if(data&&data.user&&data.user.email)who=data.user.email}catch(e){}}
+  $('#ac-who').textContent=who?'Sesión iniciada como '+who:'';
+  themeUi();pinUi();
+}
+function helpUi(){trustedUi()}
+window.onTab=w=>{if(w==='help')helpUi();if(w==='acct')acctUi()};
 window.onMain=()=>{
   if(!cur)return;
   if(!store.get(K('consent'),null)){
