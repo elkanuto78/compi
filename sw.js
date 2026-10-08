@@ -2,7 +2,11 @@ self.addEventListener('install',()=>self.skipWaiting());
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('push',e=>{
   let d={};try{d=e.data.json()}catch(_){}
-  e.waitUntil(self.registration.showNotification(d.title||'Compi',{body:d.body||'',tag:d.tag||'compi',icon:'icon-192.png',badge:'icon-192.png',data:{url:'./'}}));
+  e.waitUntil((async()=>{
+    const cl=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+    cl.forEach(c=>c.postMessage({type:'sound'}));
+    await self.registration.showNotification(d.title||'Compi',{body:d.body||'',tag:d.tag||'compi',icon:'icon-192.png',badge:'icon-192.png',vibrate:[200,100,200],data:{url:'./'}});
+  })());
 });
 self.addEventListener('notificationclick',e=>{
   e.notification.close();
