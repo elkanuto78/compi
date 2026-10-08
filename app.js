@@ -72,6 +72,54 @@ document.querySelectorAll('[data-for]').forEach(box=>{
     box.appendChild(b);
   });
 });
+const BAD_W=/(^|[^a-z])(puta|puto|pene|culo|teta|xxx|hdp|ctm|lsd|pija|sexo|porn|porno|chucha|cojudo|huevon|maricon)(s|es)?([^a-z]|$)/;
+const BAD_L=['mierda','verga','vagina','pornografia','hentai','conchatumadre','cocaina','marihuana','metanfetamina','extasis','pastabasica','sicario','terroris','pedofil','violacion','violar','abusosexual','tratadepersonas','prostitu','narcotrafic','armasilegales','secuestr','estafa'];
+const unleet=s=>s.replace(/0/g,'o').replace(/[1!|]/g,'i').replace(/3/g,'e').replace(/[4@]/g,'a').replace(/[5$]/g,'s').replace(/7/g,'t');
+const BAD_S=['puta','puto','pene','culo','teta','tetas','pija','sexo','porno','chucha','cojudo','huevon','maricon'];
+const isBad=s=>{const u=unleet(norm(s)),c=u.replace(/[^a-z0-9]/g,'');return BAD_W.test(u)||BAD_S.includes(c)||BAD_L.some(w=>c.includes(w))};
+function checkTaste(v){
+  if(v.length<2)return 'Escribe al menos 2 letras.';
+  if(v.length>30)return 'Máximo 30 caracteres.';
+  if(!/^[\p{L}\p{N}][\p{L}\p{N} .'&+\-\/]*$/u.test(v))return 'Usa solo letras, números y espacios.';
+  if(/www|\.(com|pe|net|org|io|me)\b/i.test(v))return 'No se permiten direcciones web.';
+  if(isBad(v))return 'Ese gusto no es apropiado. Escribe otro, sin lenguaje ofensivo ni temas ilegales.';
+  return '';
+}
+function checkProfile(){
+  const nm=$('#f-name').value.trim();
+  if(nm.length>60||isBad(nm))return 'Ese nombre no es válido. Escribe otro.';
+  for(const [id,lb] of [['f-music','música'],['f-food','comida'],['f-act','actividad']]){
+    const t=$('#'+id).value.trim();if(!t)continue;
+    if(t.length>200)return 'Tu lista de '+lb+' es muy larga (máximo 200 caracteres).';
+    for(const it of t.split(',').map(x=>x.trim()).filter(Boolean)){
+      const r=checkTaste(it);if(r){$('#'+id).focus();return '«'+it.slice(0,30)+'» en '+lb+': '+r}
+    }
+  }
+  return '';
+}
+document.querySelectorAll('[data-for]').forEach(box=>{
+  const inp=$('#'+box.dataset.for);
+  const other=document.createElement('button');other.type='button';other.className='chip';other.textContent='＋ Otros';other.setAttribute('aria-expanded','false');
+  const wrap=document.createElement('div');wrap.className='other-row';wrap.hidden=true;
+  const ti=document.createElement('input');ti.placeholder='Escribe el tuyo';ti.maxLength=30;ti.setAttribute('aria-label','Otro gusto');ti.autocomplete='off';
+  const ad=document.createElement('button');ad.type='button';ad.className='btn alt';ad.textContent='Agregar';
+  const msg=document.createElement('p');msg.className='err';msg.setAttribute('role','alert');
+  wrap.append(ti,ad);box.appendChild(other);box.after(wrap,msg);
+  other.onclick=()=>{wrap.hidden=!wrap.hidden;other.setAttribute('aria-expanded',String(!wrap.hidden));msg.textContent='';if(!wrap.hidden)ti.focus()};
+  const add=()=>{
+    const v=ti.value.trim().replace(/\s+/g,' '),r=checkTaste(v);
+    if(r){msg.textContent=r;return}
+    const list=inp.value.split(',').map(x=>x.trim()).filter(Boolean);
+    if(list.some(x=>norm(x)===norm(v))){msg.textContent='Ya lo tienes en tu lista.';return}
+    if(list.length>=8){msg.textContent='Puedes tener hasta 8 gustos en cada categoría.';return}
+    if(list.concat(v).join(', ').length>200){msg.textContent='La lista es muy larga. Quita alguno.';return}
+    list.push(v);inp.value=list.join(', ');
+    const c=document.createElement('button');c.type='button';c.className='chip on';c.textContent=v;c.title='Quitar';
+    c.onclick=()=>{inp.value=inp.value.split(',').map(x=>x.trim()).filter(x=>x&&x!==v).join(', ');c.remove()};
+    box.insertBefore(c,other);ti.value='';msg.textContent='';ti.focus();
+  };
+  ad.onclick=add;ti.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();add()}});
+});
 function showOnb(){
   $('#main').hidden=true;$('#onb').hidden=false;
   const p=prof||{name:'',music:'',food:'',act:''};$('#f-name').value=p.name;$('#f-music').value=p.music;$('#f-food').value=p.food;$('#f-act').value=p.act;$('#onb-err').textContent='';document.querySelectorAll('[data-for] .chip').forEach(c=>c.classList.remove('on'));
@@ -79,6 +127,7 @@ function showOnb(){
 $('#start').onclick=()=>{
   const name=$('#f-name').value.trim();
   if(!name){$('#onb-err').textContent='Escribe tu nombre para continuar.';return}
+  const bad=checkProfile();if(bad){$('#onb-err').textContent=bad;return}
   const isNew=!prof;
   prof={name,music:$('#f-music').value.trim(),food:$('#f-food').value.trim(),act:$('#f-act').value.trim()};
   if(isNew||!chat.length)say('bot',`¡Mucho gusto, ${name}! 😊 Ya anoté tus gustos. Puedo charlar contigo, guardar recordatorios (di «avísame mañana a las 8…») y mostrarte tu agenda en calendario. ¿Cómo te sientes hoy?`);
