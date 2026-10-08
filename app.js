@@ -138,11 +138,11 @@ function showMain(){$('#onb').hidden=true;$('#main').hidden=false;renderChat();r
 
 /* ---------- Tabs ---------- */
 function tab(w){
-  ['chat','ag','mood','help'].forEach(x=>{$('#v-'+x).classList.toggle('on',w===x);$('#tab-'+x).setAttribute('aria-selected',w===x)});
+  ['chat','ag','mood','help','acct'].forEach(x=>{$('#v-'+x).classList.toggle('on',w===x);const t=$('#tab-'+x);if(t)t.setAttribute('aria-selected',w===x)});
   if(w==='mood')renderMood();
   if(window.onTab)onTab(w);
 }
-$('#tab-chat').onclick=()=>tab('chat');$('#tab-ag').onclick=()=>tab('ag');$('#tab-mood').onclick=()=>tab('mood');$('#tab-help').onclick=()=>tab('help');
+$('#tab-chat').onclick=()=>tab('chat');$('#tab-ag').onclick=()=>tab('ag');$('#tab-mood').onclick=()=>tab('mood');
 $('#edit').onclick=showOnb;
 
 /* ---------- Chat ---------- */
