@@ -147,3 +147,8 @@ a.btn[hidden]{display:none}
 .consent input{width:20px;height:20px;accent-color:var(--acc)}
 .consent .link{padding:0}
 @media (max-width:520px){header>.av{display:none}header h1{font-size:19px}.tab{font-size:14px;padding:9px 4px}}
+.other-row{display:flex;gap:8px;margin-top:8px;align-items:center}
+.other-row[hidden]{display:none}
+.other-row .btn{flex:none;padding:10px 18px}
+.field>.err{margin:6px 4px 0;min-height:0}
+.field>.err:empty{display:none}
