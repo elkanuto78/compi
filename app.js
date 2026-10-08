@@ -722,12 +722,41 @@ $('#c-add').onclick=()=>{
 {const ra=renderAgenda;renderAgenda=function(){ra();if(!$('#ag-cal').hidden)renderCal()}}
 
 /* ---------- Notificaciones ---------- */
+function showNote(title,body,tag){
+  try{
+    if(typeof Notification==='undefined'||Notification.permission!=='granted')return;
+    const o={body,tag:tag||'compi',icon:'icon-192.png',badge:'icon-192.png'};
+    if('serviceWorker' in navigator)navigator.serviceWorker.ready.then(r=>r.showNotification(title,o)).catch(()=>{try{new Notification(title,o)}catch(x){}});
+    else new Notification(title,o);
+  }catch(x){}
+}
+const b64u=s=>{const p='='.repeat((4-s.length%4)%4),b=(s+p).replace(/-/g,'+').replace(/_/g,'/'),r=atob(b);return Uint8Array.from(r,c=>c.charCodeAt(0))};
+async function subscribePush(){
+  const k=CFG.VAPID_PUBLIC_KEY;
+  if(!CLOUD||!cur||!k||k.length<60||!('serviceWorker' in navigator)||!('PushManager' in window)||typeof Notification==='undefined'||Notification.permission!=='granted')return;
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(k)});
+    const j=sub.toJSON();
+    await sb.from('push_subs').upsert({endpoint:j.endpoint,user_id:cur,p256dh:j.keys.p256dh,auth:j.keys.auth},{onConflict:'endpoint'});
+  }catch(e){}
+}
+async function unsubPush(){
+  try{
+    if(!CLOUD||!('serviceWorker' in navigator))return;
+    const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();
+    if(sub){await sb.from('push_subs').delete().eq('endpoint',sub.endpoint);await sub.unsubscribe()}
+  }catch(e){}
+}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 function notifStatus(){
   const s=$('#n-status'),b=$('#n-btn');
   if(typeof Notification==='undefined'){s.textContent='Tu navegador no permite notificaciones. Verás los avisos dentro de la página.';b.hidden=true;return}
   const p=Notification.permission;
   s.textContent=p==='granted'?'Notificaciones activadas.':p==='denied'?'Las notificaciones están bloqueadas en tu navegador. Habilítalas desde los permisos del sitio.':'Aún no están activadas.';
   b.hidden=p!=='default';
+  subscribePush();
 }
 $('#n-btn').onclick=()=>{
   try{Notification.requestPermission().then(notifStatus).catch(notifStatus)}catch(e){notifStatus()}
@@ -748,7 +777,7 @@ function check(){
       const msg=`Recordatorio: ${e.title}`;
       toast(msg);beep();
       chat.push({who:'bot',text:`Oye, ${prof.name}. ${msg}.`});
-      try{if(typeof Notification!=='undefined'&&Notification.permission==='granted')new Notification('Compi',{body:e.title})}catch(x){}
+      showNote('Compi',e.title,e.id);
       if(e.repeat){const st=e.repeat==='daily'?86400000:604800000;let at=new Date(e.at).getTime();while(at<=now)at+=st;e.at=new Date(at).toISOString();e.notified=false}
     }
   });
@@ -911,7 +940,7 @@ function showAuth(){
   $('#main').hidden=true;$('#onb').hidden=true;$('#auth').hidden=false;setMode('in');
 }
 function showRecovery(){recovering=true;$('#main').hidden=true;$('#onb').hidden=true;$('#auth').hidden=false;setMode('newpw')}
-$('#out').onclick=async()=>{if(CLOUD){await syncCloud();try{await sb.auth.signOut()}catch(e){}}showAuth()};
+$('#out').onclick=async()=>{if(CLOUD){await syncCloud();await unsubPush();try{await sb.auth.signOut()}catch(e){}}showAuth()};
 
 /* ---------- Borrar cuenta y datos ---------- */
 let wipeArm=false;
