@@ -490,10 +490,34 @@ function talk(text){
   if(GREET&&notes.length&&!/^¡Hola/.test(body[0]||'')){notes[0]=`¡Hola, ${n}! `+notes[0]}
   return notes.concat(body).join('\n');
 }
+const BANK=window.COMPI_RESPUESTAS||[],lastBank={};
+function bank(t){
+  const L=store.get(K('taught'),[]);
+  for(const x of L)if(t===x.k||t.includes(x.k))return x.r;
+  for(const e of BANK){
+    if(!e.re.test(t))continue;
+    let i=Math.floor(Math.random()*e.r.length);if(e.r.length>1&&i===lastBank[e.id])i=(i+1)%e.r.length;lastBank[e.id]=i;
+    let out=e.r[i];if(e.q&&e.q.length)out+='\n'+pick(e.q);if(e.extra&&Math.random()<.5)out+='\n'+e.extra;
+    return out.replace(/\{n\}/g,first(prof&&prof.name,''));
+  }
+  return null;
+}
+function localTalk(text,t){
+  const L=talk(text),b=bank(t);if(!b)return L;
+  offer=null;const keep=L.match(/^(Anoté|Listo, quité).*$/gm)||[];
+  return keep.length?b+'\n\n'+keep.join('\n'):b;
+}
+function teach(text){
+  const m=text.match(/^\s*cuando (?:te )?(?:diga|escriba)\s+[«"“]?(.+?)[»"”]?\s*,?\s*(?:responde|contesta|respondeme|dime)\s*:?\s*[«"“]?(.+?)[»"”]?\s*$/i);
+  if(m){const k=norm(m[1]).trim(),r=m[2].trim();if(k.length>=2&&r){const L=store.get(K('taught'),[]).filter(x=>x.k!==k);L.push({k,r:r.slice(0,300)});store.set(K('taught'),L.slice(-50));return `Listo, aprendí: cuando me digas «${m[1].trim()}», responderé «${r.slice(0,300)}».`}}
+  if(/^\s*(olvida|borra) (todo )?lo (que )?(te )?(ense|aprend)/i.test(norm(text))){store.set(K('taught'),[]);return 'Listo, olvidé todo lo que me enseñaste.'}
+  return null;
+}
 function reply(text){
   const t=norm(text);
   if(CRISIS.test(t)){offer=null;pending=null;return{crisis:true,text:crisisMsg(prof.name)}}
   if(ABUSE.test(t)){offer=null;pending=null;return{crisis:true,text:abuseMsg(prof.name),links:[['Llamar a la Línea 100','tel:100'],['Emergencias 105','tel:105']]}}
+  const ta=teach(text);if(ta)return ta;
   if(offer){
     const o=offer;offer=null;
     if(/^(si|sii|dale|ok|okay|claro|por favor|porfa|vale|bueno|de acuerdo|listo|hazlo)\b/.test(t)){
@@ -511,7 +535,7 @@ function reply(text){
   if(w&&WEAK.test(t))return remind(text,t);
   if(w&&OBLIG.test(t)){const r=remind(text,t,true);return r+tasteNote(analyze(text))}
   const as=assist(text,t);if(as)return as;
-  return CLOUD?{ai:true,local:talk(text)}:talk(text);
+  return CLOUD?{ai:true,local:localTalk(text,t)}:localTalk(text,t);
 }
 
 /* ---------- Recordatorios por chat ---------- */
