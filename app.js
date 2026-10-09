@@ -120,7 +120,7 @@ document.querySelectorAll('[data-for]').forEach(box=>{
   };
   ad.onclick=add;ti.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();add()}});
 });
-function showOnb(){
+function showOnb(){hideBoot();
   $('#main').hidden=true;$('#onb').hidden=false;
   const p=prof||{name:'',music:'',food:'',act:''};$('#f-name').value=p.name;$('#f-music').value=p.music;$('#f-food').value=p.food;$('#f-act').value=p.act;$('#onb-err').textContent='';document.querySelectorAll('[data-for] .chip').forEach(c=>c.classList.remove('on'));
 }
@@ -134,7 +134,8 @@ $('#start').onclick=()=>{
   else say('bot','Listo, actualicé tus gustos.');
   save();showMain();
 };
-function showMain(){$('#onb').hidden=true;$('#main').hidden=false;renderChat();renderAgenda();notifStatus();setTimeout(check,300);if(window.onMain)onMain()}
+function hideBoot(){const b=$('#boot');if(b)b.hidden=true}
+function showMain(){hideBoot();$('#onb').hidden=true;$('#main').hidden=false;renderChat();renderAgenda();notifStatus();setTimeout(check,300);if(window.onMain)onMain()}
 
 /* ---------- Tabs ---------- */
 function tab(w){
@@ -1008,9 +1009,9 @@ async function enterCloud(){
 function showAuth(){
   cur=null;prof=null;events=[];chat=[];moods=[];snap={ev:{},mo:new Set(),prof:''};
   store.set('compi_session',null);
-  $('#main').hidden=true;$('#onb').hidden=true;$('#auth').hidden=false;setMode('in');
+  hideBoot();$('#main').hidden=true;$('#onb').hidden=true;$('#auth').hidden=false;setMode('in');
 }
-function showRecovery(){recovering=true;$('#main').hidden=true;$('#onb').hidden=true;$('#auth').hidden=false;setMode('newpw')}
+function showRecovery(){hideBoot();recovering=true;$('#main').hidden=true;$('#onb').hidden=true;$('#auth').hidden=false;setMode('newpw')}
 $('#out').onclick=async()=>{if(CLOUD){await syncCloud();await unsubPush();try{await sb.auth.signOut()}catch(e){}}showAuth()};
 
 /* ---------- Borrar cuenta y datos ---------- */
@@ -1050,3 +1051,5 @@ if(CLOUD){
     }catch(e){showAuth()}
   })();
 }else if(cur&&store.get('compi_users',{})[cur])enter();else showAuth();
+
+setTimeout(()=>{const b=$('#boot');if(b&&!b.hidden&&$('#auth').hidden&&$('#main').hidden&&$('#onb').hidden)showAuth();else hideBoot()},10000);
