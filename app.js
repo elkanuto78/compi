@@ -814,11 +814,15 @@ function notifStatus(){
   const p=Notification.permission;
   s.textContent=p==='granted'?'Notificaciones activadas.':p==='denied'?'Las notificaciones están bloqueadas en tu navegador. Habilítalas desde los permisos del sitio.':'Aún no están activadas.';
   b.hidden=p!=='default';
+  const as=$('#ac-nstat'),ab=$('#ac-nbtn');
+  if(as){as.textContent=s.textContent;ab.hidden=p!=='default'}
   subscribePush();
 }
-$('#n-btn').onclick=()=>{
+const askNotif=()=>{
   try{Notification.requestPermission().then(notifStatus).catch(notifStatus)}catch(e){notifStatus()}
 };
+$('#n-btn').onclick=askNotif;
+$('#ac-nbtn').onclick=askNotif;
 function toast(msg){
   const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,8000);
 }
