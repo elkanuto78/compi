@@ -301,6 +301,7 @@ const ACTS={
   acct:()=>tab('acct'),
   likes:()=>showOnb(),
   reset:resetChat,
+  notif:()=>{if(typeof Notification==='undefined'){toast('Tu navegador no permite notificaciones');return}if(Notification.permission==='default')Notification.requestPermission().then(notifStatus).catch(notifStatus);else{notifStatus();tab('acct');toast(Notification.permission==='granted'?'Las notificaciones ya están activadas':'Están bloqueadas: habilítalas en los permisos del sitio')}},
   priv:()=>showPriv(false),
   out:()=>$('#out').click()
 };
@@ -330,7 +331,7 @@ async function acctUi(){
   let who=cur||'';
   if(CLOUD){try{const{data}=await sb.auth.getUser();if(data&&data.user&&data.user.email)who=data.user.email}catch(e){}}
   $('#ac-who').textContent=who?'Sesión iniciada como '+who:'';
-  themeUi();pinUi();
+  themeUi();pinUi();notifStatus();
 }
 function helpUi(){trustedUi()}
 window.onTab=w=>{if(w==='help')helpUi();if(w==='acct')acctUi()};
