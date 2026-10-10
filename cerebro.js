@@ -178,6 +178,8 @@ function tool(text,t,ctx){
   /* datos personales */
   const rc=recall(t,ctx);if(rc)return mk(rc);
   const ln=learn(t,text);if(ln){if(ln.short||ln.name)return mk(ln.text,{name:ln.name})}
+  /* matemáticas */
+  if(window.MATH){const mt=MATH.solve(text,t);if(mt)return mk(mt)}
   /* herramientas */
   if(m=t.match(/(?:cual es |dime |sabes |cuentame )?la capital (?:de|del) (?:la |el |los |las )?([a-z ]{3,30}?)\s*\??$/)){
     const k=m[1].trim(),c=D().capitales&&D().capitales[k];
