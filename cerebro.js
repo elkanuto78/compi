@@ -41,7 +41,7 @@ function ask(text,t,ctx){
     const W=wordsOf(t);
     for(const e of KB()){
       if(e.chat||!e.a.some(Boolean))continue;
-      const tk=e.id.split('-').filter(x=>x.length>=4);
+      const tk=e.id.split('-').filter(x=>x.length>=3);
       if(!tk.length||!tk.some(x=>x.length>=6))continue;
       if(tk.every(x=>W.has(x.replace(/(es|s)$/,'')))){best=e;break}
     }
@@ -93,6 +93,7 @@ function recall(t,ctx){
   const f=store_();
   let m;
   if(m=t.match(new RegExp('como se llama mi ('+REL+')')))return f['rel_'+m[1].replace(' ','_')]?`Tu ${m[1]} se llama ${f['rel_'+m[1].replace(' ','_')]}.`:`Aún no me dijiste cómo se llama tu ${m[1]}. Cuéntame: «mi ${m[1]} se llama…».`;
+  if(/^(como me llamo|cual es mi nombre|sabes mi nombre|quien soy)\b/.test(t))return nm(ctx)?`Te llamas ${nm(ctx)}. Si prefieres otro nombre, dime «llámame…».`:null;
   if(/^(olvida|borra) (mis datos|todos mis datos|lo que te (conte|dije)|mi informacion)/.test(t)){save_({});return'Listo, olvidé tus datos personales.'}
   if(/^que (datos|cosas) (tienes|sabes) de mi|^que sabes de mi\b/.test(t)){
     const ft=factsText(),p=(ctx&&ctx.prof)||{},g=['music','food','act'].filter(c=>p[c]).map(c=>`${{music:'música',food:'comida',act:'actividades'}[c]}: ${p[c]}`);
