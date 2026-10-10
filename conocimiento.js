@@ -1259,6 +1259,11 @@ E('como-usar-mate','que sabes de (matematica|mates|calculo)|que (puedes|sabes) (
  ['Puedo resolver: operaciones con raíces, potencias, factorial, logaritmos y trigonometría; derivadas («derivada de x^2*sen(x)»), integrales indefinidas y definidas («integral de x*e^x», «integral de x^2 de 0 a 3»), límites («límite de sen(x)/x cuando x tiende a 0»), ecuaciones y sistemas («resuelve x^2-5x+6=0», «x+y=5, x-y=1»), MCD/MCM, primos, factorización, estadística de listas, geometría básica y conversión de bases.'],'',"c");
 /* --- Fin ampliación 3 --- */
 
+E('grupo-no-cumple','(grupo|equipo|companer\\w+|integrantes)\\b.*\\bno (cumpl\\w+|trabaj\\w+|hac\\w+|respond\\w+|ayud\\w+|aport\\w+|entreg\\w+|colabor\\w+)|nadie (del|de mi) (grupo|equipo) (trabaja|hace|responde)|me (dejan|dejaron) todo (el trabajo|a mi)|hago todo yo|cargo con todo',
+ ['Qué frustrante, {n}: cargar con el peso cuando el grupo no responde cansa y da rabia. Algunas ideas: 1) habla con el grupo con hechos, no reproches («falta X, ¿quién lo toma para el jueves?»), 2) reparte tareas por escrito con responsable y fecha, 3) deja constancia en un chat o tablero y 4) si no cambia, avisa al docente con evidencia de lo trabajado. ¿Quieres que armemos juntos un reparto de tareas o cómo plantearlo?']);
+E('sobrecarga','(estuve|estoy|he estado|llevo|vengo) (trabajando|estudiando|haciendo|cargando) (mucho|demasiado|bastante|sin parar)|trabajo (demasiado|muchisimo)|tengo (muchisimo|demasiado) (trabajo|que hacer)|no (me )?doy abasto|sobrecarga|mucha carga',
+ ['Se nota que vienes con mucha carga, {n}. Cuando el cuerpo y la mente pasan mucho tiempo sin pausa, aparecen cansancio, irritabilidad y menos concentración. Prioriza lo realmente urgente, agenda descansos (aunque sean 10 minutos), protege tus horas de sueño y pide ayuda en lo que se pueda delegar.'],'',"c");
+
 /* export */
 window.COMPI_KB=KB;
 
