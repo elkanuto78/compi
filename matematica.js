@@ -499,7 +499,8 @@ function nat(t){
   let s=' '+t.replace(/\?|¿|¡/g,' ').replace(/([^\d)])!+\s*$/,'$1').replace(/\s+/g,' ')+' ';
   s=s.replace(/\bpi\b/g,'pi').replace(/π/g,'pi').replace(/√/g,'sqrt').replace(/×/g,'*').replace(/÷/g,'/').replace(/\*\*/g,'^').replace(/−/g,'-');
   s=s.replace(/(\d)\s*°/g,'$1 grados');
-  s=s.replace(/raiz cuadrada (?:de |del )?(?:la |el )?/g,'sqrt ').replace(/raiz cubica (?:de |del )?/g,'cbrt ');
+  s=s.replace(/\bra[a-z]?z\b(?= cuadrad| de| \d)/g,'raiz');
+  s=s.replace(/raiz cuadrad[ao] (?:de |del )?(?:la |el )?/g,'sqrt ').replace(/\braiz (?:de |del )(?=[\d(a-z])/g,'sqrt ').replace(/raiz cubica (?:de |del )?/g,'cbrt ');
   s=s.replace(/raiz (\d+)(?:-?esima|ava)? (?:de |del )?/g,'root$1 ');
   s=s.replace(/logaritmo natural (?:de |del )?/g,'ln ').replace(/logaritmo (?:neperiano |natural )?(?:de |del )?/g,'log ').replace(/logaritmo en base (\d+) (?:de |del )?/g,'logb$1 ');
   s=s.replace(/\blog (?:en )?base (\d+) (?:de |del )?/g,'logb$1 ');
