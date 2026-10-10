@@ -12,7 +12,7 @@ let last={id:null,more:'',at:0,quiz:null};
 let game=null;
 const seen={};
 const ASKY=/\?|\b(que|como|cual|cuales|cuanto|cuantos|cuando|donde|quien|quienes|por que|para que|explic\w+|dime|define|ensen\w+|hablame|cuentame|dame|consejos?|tips?|ayuda\w*|necesito|sabes|recomiend\w+|ideas?|guiame|ponme|hazme|diferencia|sinonimos?|formula|reglas?|leyes|tecnica|metodo|datos?|sobre|saber|aprender|informacion)\b/;
-const FREE=new Set('hablar-publico examen-nervios soledad ruptura celos duelo bullying culpa verguenza miedo cansancio fracaso insomnio panico burnout timidez perfeccionismo procrastinar estres ansiedad-social act-conductual pensamientos-neg autoestima ira familia comparacion-redes tecnologia-redes pesadillas estres-uni futuro amor motivacion soledad-estudio que-hacer-triste ansiedad-control'.split(' '));
+const FREE=new Set('trabajo-equipo sobrecarga grupo-no-cumple hablar-publico examen-nervios soledad ruptura celos duelo bullying culpa verguenza miedo cansancio fracaso insomnio panico burnout timidez perfeccionismo procrastinar estres ansiedad-social act-conductual pensamientos-neg autoestima ira familia comparacion-redes tecnologia-redes pesadillas estres-uni futuro amor motivacion soledad-estudio que-hacer-triste ansiedad-control'.split(' '));
 const REGEN=new Set(['dato-curioso','adivinanza','trivia','cuento','verdad-reto','piropo']);
 const QA=[['blanca por dentro','La pera.'],['tengo agujas','El reloj.'],['vuelo sin alas','El viento.'],['oro parece','El plátano.'],['si me nombras','El silencio.'],['sube y baja','La escalera.'],['planeta mas grande','Júpiter.'],['hombre llego a la luna','En 1969 (Apolo 11, 20 de julio).'],['mas caudaloso','El Amazonas.'],['hexagono','Seis.'],['simbolo quimico del oro','Au (del latín aurum).'],['mona lisa','Leonardo da Vinci.']];
 
@@ -27,28 +27,97 @@ function setLast(e,out){
   const n=norm(out);for(const [k,v] of QA)if(n.includes(k)){last.quiz=v;break}
 }
 function wordsOf(t){return new Set(t.split(/[^a-z0-9]+/).filter(Boolean).map(w=>w.replace(/(es|s)$/,'')))}
-function gate(e,t){return e.chat||FREE.has(e.id)||ASKY.test(t)||t.split(/\s+/).length<=4}
+const PRE=/^(?:hola|oye|ey|compi|disculpa|perdon|una pregunta|una duda|por cierto|a ver|bueno|entonces|y|pero)[\s,:;.!¿¡]+/;
+const QW=/^(que (?:es|son|significa|hago|puedo|debo|deberia|hay|sabes|opinas|piensas|me recomiendas|te parece|tipo|diferencia|cosa|clase|forma|manera|metodo|tecnica|hace|hacen)|como|cual|cuales|cuanto|cuantos|cuanta|cuantas|cuando|donde|quien|quienes|por que|para que|explic\w+|dime|define|ensen\w+|hablame|cuentame|dame|puedes|podrias|sabes|recomiend\w+|ayud\w+|necesito (?:saber|que me|un|una)|quiero saber|quisiera saber|me puedes|existe|hay )\b/;
+function isQ(t){if(/\?/.test(t))return true;return t.split(/[:;,.!¿¡]+/).some(c=>{let q=c.trim();for(let i=0;i<2;i++)q=q.replace(PRE,'');return QW.test(q)||/^(tips?|consejos?|ideas?|formulas?|reglas?|metodos?|tecnicas?|datos?|diferencia|sinonimos?)\b/.test(q)})}
+function isQ_old(t){let q=t.trim();for(let i=0;i<2;i++)q=q.replace(PRE,'');return /\?/.test(t)||QW.test(q)||/^(tips?|consejos?|ideas?|formulas?|reglas?|metodos?|tecnicas?|datos?|diferencia|sinonimos?)\b/.test(q)}
+function gate(e,t){return e.chat||FREE.has(e.id)||isQ(t)||(t.split(/\s+/).length<=3&&!/\b(tengo|estoy|soy|me|mi|mis|estuve|fui|voy|quiero|no)\b/.test(t))}
 
 /* ---------- consulta a la base de conocimiento ---------- */
-function ask(text,t,ctx){
-  let best=null,len=0;
+function findAll(t){
+  const hits=[];
   for(const e of KB()){
     if(!e.a.some(Boolean))continue;
     const m=t.match(e.re);if(!m||!gate(e,t))continue;
-    if(m[0].length>len){best=e;len=m[0].length}
+    hits.push({e,len:m[0].length});
   }
-  if(!best&&(ASKY.test(t)||t.split(/\s+/).length<=3)){
-    const W=wordsOf(t);
-    for(const e of KB()){
-      if(e.chat||!e.a.some(Boolean))continue;
-      const tk=e.id.split('-').filter(x=>x.length>=3);
-      if(!tk.length||!tk.some(x=>x.length>=6))continue;
-      if(tk.every(x=>W.has(x.replace(/(es|s)$/,'')))){best=e;break}
-    }
+  hits.sort((x,y)=>y.len-x.len);
+  return hits;
+}
+function fuzzy(t){
+  if(!(isQ(t)||t.split(/\s+/).length<=3)||t.split(/\s+/).length>10)return null;
+  const W=wordsOf(t);
+  for(const e of KB()){
+    if(e.chat||!e.a.some(Boolean))continue;
+    const tk=e.id.split('-').filter(x=>x.length>=3);
+    if(!tk.length||!tk.some(x=>x.length>=6))continue;
+    if(tk.every(x=>W.has(x.replace(/(es|s)$/,''))))return e;
   }
+  return null;
+}
+function ask(text,t,ctx){
+  let hits=findAll(t),best=hits[0]&&hits[0].e,second=null;
+  if(!best){const t2=fix(t);if(t2!==t){hits=findAll(t2);best=hits[0]&&hits[0].e;t=t2}}
+  if(!best)best=fuzzy(t);
   if(!best)return null;
-  const out=fill(pickAns(best),ctx);setLast(best,out);
+  if(hits.length>1&&(best.chat||FREE.has(best.id))){
+    const o=hits.find(h=>h.e.id!==best.id&&(h.e.chat||FREE.has(h.e.id))&&h.len>=6);
+    if(o)second=o.e;
+  }
+  let out=fill(pickAns(best),ctx);setLast(best,out);
+  if(second){const o2=fill(pickAns(second),ctx);if(out.length+o2.length<760)out+='\n\n'+o2}
   return{text:out,id:best.id};
+}
+
+/* ---------- corrector de errores de tipeo ---------- */
+let VOC=null,VBY=null;
+function vocab(){
+  if(VOC)return VOC;
+  VOC=Object.create(null);
+  const add=(w,c)=>{if(w.length>=4)VOC[w]=(VOC[w]||0)+(c||1)};
+  const src=window.COMPI_VOCAB;
+  if(src&&typeof src==='object')for(const w in src)add(w,src[w]);
+  KB().forEach(e=>{(norm(e.a.join(' ')).match(/[a-z]{4,}/g)||[]).forEach(w=>add(w,2));e.id.split('-').forEach(w=>add(w,3))});
+  VBY={};for(const w in VOC)(VBY[w[0]]=VBY[w[0]]||[]).push(w);
+  return VOC;
+}
+function dist(a,b,max){
+  if(Math.abs(a.length-b.length)>max)return max+1;
+  const m=a.length,n=b.length;let p2=null,p1=Array.from({length:n+1},(_,j)=>j);
+  for(let i=1;i<=m;i++){
+    const cur=[i];let mn=i;
+    for(let j=1;j<=n;j++){
+      let v=Math.min(p1[j]+1,cur[j-1]+1,p1[j-1]+(a[i-1]===b[j-1]?0:1));
+      if(p2&&i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1])v=Math.min(v,p2[j-2]+1);
+      cur[j]=v;if(v<mn)mn=v;
+    }
+    if(mn>max)return max+1;
+    p2=p1;p1=cur;
+  }
+  return p1[n];
+}
+const FIXC={};
+function fixWord(w){
+  if(w.length<5)return w;
+  const V=vocab();if(V[w])return w;
+  if(w in FIXC)return FIXC[w];
+  const max=w.length>=9?2:1;let best=null,bs=-1;
+  for(const c of VBY[w[0]]||[]){
+    if(Math.abs(c.length-w.length)>max)continue;
+    const d=dist(w,c,max);
+    if(d<=max){const sc=V[c]/(1+d*3);if(sc>bs){bs=sc;best=c}}
+  }
+  return FIXC[w]=best||w;
+}
+const SHORT={qeu:'que',kue:'que',cmo:'como',komo:'como',coom:'como',cuak:'cual',cuan:'cual',cuant:'cuanto',exlica:'explica',dime:'dime',qe:'que',ke:'que'};
+function fix(t){return t.replace(/[a-z]{2,}/g,w=>w.length<5?(SHORT[w]||w):fixWord(w))}
+function fixText(text){
+  vocab();
+  return text.replace(/[\p{L}]{5,}/gu,w=>{
+    if(/^\p{Lu}/u.test(w))return w;
+    const n=norm(w),f=fixWord(n);
+    return f===n?w:f;
+  });
 }
 
 /* ---------- datos personales (memoria) ---------- */
@@ -210,5 +279,5 @@ function tool(text,t,ctx){
   }
   return null;
 }
-window.CEREBRO={ask,tool,factsText,norm,reset(){last={id:null,more:'',at:0,quiz:null};game=null}};
+window.CEREBRO={ask,tool,factsText,norm,fix,fixText,isQ,reset(){last={id:null,more:'',at:0,quiz:null};game=null}};
 })();
