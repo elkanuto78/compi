@@ -59,23 +59,24 @@ function tokenize(s){
   }
   return T;
 }
-function parse(s){
+function parse(s,raw){
+  const R=raw?{add:(a,b)=>({k:'+',a,b}),sub:(a,b)=>({k:'-',a,b}),mul:(a,b)=>({k:'*',a,b}),div:(a,b)=>({k:'/',a,b}),pow:(a,b)=>({k:'^',a,b}),neg:a=>isN(a)?N(-a.v):{k:'neg',a}}:{add,sub,mul,div,pow,neg};
   const T=tokenize(s);let p=0;
   const pk=()=>T[p],nx=()=>T[p++];
   const startsPrim=t=>t&&(t.t==='n'||t.t==='v'||t.t==='c'||t.t==='f'||t.t==='(');
-  function expr(){let a=term();while(pk()&&(pk().t==='+'||pk().t==='-')){const o=nx().t;const b=term();a=o==='+'?add(a,b):sub(a,b)}return a}
+  function expr(){let a=term();while(pk()&&(pk().t==='+'||pk().t==='-')){const o=nx().t;const b=term();a=o==='+'?R.add(a,b):R.sub(a,b)}return a}
   function term(){
     let a=unary();
     for(;;){
       const t=pk();
-      if(t&&(t.t==='*'||t.t==='/')){nx();const b=unary();a=t.t==='*'?mul(a,b):div(a,b)}
-      else if(startsPrim(t)){const b=unary();a=mul(a,b)}
+      if(t&&(t.t==='*'||t.t==='/')){nx();const b=unary();a=t.t==='*'?R.mul(a,b):R.div(a,b)}
+      else if(startsPrim(t)){const b=unary();a=R.mul(a,b)}
       else break;
     }
     return a;
   }
-  function unary(){const t=pk();if(t&&t.t==='-'){nx();return neg(unary())}if(t&&t.t==='+'){nx();return unary()}return pw()}
-  function pw(){const a=post();if(pk()&&pk().t==='^'){nx();const b=unary();return pow(a,b)}return a}
+  function unary(){const t=pk();if(t&&t.t==='-'){nx();return R.neg(unary())}if(t&&t.t==='+'){nx();return unary()}return pw()}
+  function pw(){const a=post();if(pk()&&pk().t==='^'){nx();const b=unary();return R.pow(a,b)}return a}
   function post(){let a=prim();while(pk()&&pk().t==='!'){nx();a={k:'!',a}}return a}
   function prim(){
     const t=nx();if(!t)throw 0;
@@ -552,8 +553,155 @@ function simp(n){
 function show(n){return pr(n,0)}
 /* ---------- resolutor principal ---------- */
 const TRIG=/\b(sin|cos|tan|sen|sqrt|ln|log|exp)\s*\(|\b(derivad|deriva|derivar|integra|integral|primitiva|antiderivada|limite|lim\b|resuelve|resolver|ecuacion|sistema|raices|soluciones|raiz|factorial|mcd|mcm|maximo comun|minimo comun|es primo|primos|factoriza|descompon|divisores|binario|hexadecimal|octal|promedio|media|mediana|moda|desviacion|determinante|simplifica|area|volumen|perimetro|hipotenusa|cuanto es|cuanto da|calcula|evalua|resultado|elevado|al cuadrado|al cubo|logaritmo|log\b|seno|coseno|tangente|combinaciones|permutaciones|fibonacci|suma de los|sumatoria|despeja)/;
+/* ---------- procedimiento paso a paso ---------- */
+const ST=[];const stp=x=>{if(ST.length<60)ST.push(x)};
+const fx=n=>pr(n).replace(/·/g,' × ').replace(/\//g,' ÷ ').replace(/\s+/g,' ');
+const fq=n=>pr(n).replace(/\s+/g,' ');
+const isLeaf=n=>n.k==='n'&&!n.s;
+const hasSym=n=>n.k==='n'?!!n.s:n.k==='v'?true:hasSym(n.a)||(n.b?hasSym(n.b):false);
+const prioOf=n=>n.k==='f'||n.k==='!'||n.k==='^'||n.k==='neg'?3:n.k==='*'||n.k==='/'?2:1;
+const kidsOf=n=>n.b?[n.a,n.b]:[n.a];
+const isRdy=n=>!isLeaf(n)&&n.k!=='v'&&kidsOf(n).every(isLeaf);
+function rdyList(n,o=[]){if(isLeaf(n)||n.k==='v')return o;if(isRdy(n))o.push(n);else kidsOf(n).forEach(k=>rdyList(k,o));return o}
+function redTree(n,P){if(isLeaf(n)||n.k==='v')return n;if(isRdy(n))return prioOf(n)===P?N(ev(n,{})):n;const c={...n,a:redTree(n.a,P)};if(n.b)c.b=redTree(n.b,P);return c}
+function arithChain(t){
+  if(hasSym(t))return null;const o=[];let n=t,g=0;
+  while(!isLeaf(n)&&g++<14){const L=rdyList(n);if(!L.length)return null;n=redTree(n,Math.max(...L.map(prioOf)));if(isLeaf(n)&&!isFinite(n.v))return null;o.push(n)}
+  return o;
+}
+function arithSteps(raw,label){
+  try{
+    const ch=arithChain(raw);if(!ch||ch.length<2)return;
+    stp((label||'Expresión: ')+fx(raw));
+    ch.slice(0,-1).forEach(x=>stp('= '+fx(x)));
+  }catch(e){}
+}
+function radSteps(n){
+  if(!Number.isInteger(n)||n<2||n>1e12)return;
+  const lo=Math.floor(Math.sqrt(n));
+  const f=factorize(n),m={};f.forEach(x=>m[x]=(m[x]||0)+1);
+  stp(`Descomponemos ${n} en factores primos: ${n} = ${expStr(f)}`);
+  let out=1,rest=1;Object.keys(m).forEach(k=>{const e=m[k];out*=Math.pow(+k,Math.floor(e/2));if(e%2)rest*=+k});
+  if(rest===1)stp(`Todos los exponentes son pares, así que √${n} = ${out}`);
+  else if(out>1)stp(`Sacamos los pares: √${n} = ${out}·√${rest}`);
+  else stp(`No hay factores repetidos: √${n} no se simplifica`);
+  if(rest!==1)stp(`Estimación: ${lo}² = ${lo*lo} < ${n} < ${(lo+1)*(lo+1)} = ${lo+1}², así que está entre ${lo} y ${lo+1}`);
+}
+const FDER={sin:'cos(u)',cos:'−sen(u)',tan:'sec²(u)',ln:'1/u',exp:'eᵘ',sqrt:'1/(2√u)',cbrt:'1/(3·∛(u²))',log:'1/(u·ln 10)',asin:'1/√(1−u²)',acos:'−1/√(1−u²)',atan:'1/(1+u²)',sinh:'cosh(u)',cosh:'senh(u)',abs:'u/|u|',sec:'sec(u)·tan(u)',csc:'−csc(u)·cot(u)',cot:'−csc²(u)'};
+const FNM={sin:'sen',asin:'arcsen',acos:'arccos',atan:'arctan',sinh:'senh'};
+function dTerm(t,v){
+  const P=x=>fq(x),Dd=x=>fq(simp(D(x,v)));
+  let rule='',det=null;
+  if(!has(t,v))rule='la derivada de una constante es 0';
+  else if(isV(t,v))rule='la derivada de x es 1';
+  else if(t.k==='neg')rule='el signo menos sale: (−g)′ = −g′';
+  else if(t.k==='*'&&isN(t.a))rule='constante por función: (k·g)′ = k·g′';
+  else if(t.k==='*'){rule='regla del producto: (u·w)′ = u′·w + u·w′';det=[['u',t.a],['w',t.b]]}
+  else if(t.k==='/'&&!has(t.b,v))rule='división entre constante: (g/k)′ = g′/k';
+  else if(t.k==='/'){rule='regla del cociente: (u/w)′ = (u′·w − u·w′) ÷ w²';det=[['u',t.a],['w',t.b]]}
+  else if(t.k==='^'){
+    if(isV(t.a,v)&&!has(t.b,v))rule='regla de la potencia: (xⁿ)′ = n·xⁿ⁻¹';
+    else if(!has(t.a,v)){rule='exponencial: (aᵘ)′ = aᵘ·ln(a)·u′';det=[['u',t.b]]}
+    else if(!has(t.b,v)){rule='regla de la cadena con potencia: (uⁿ)′ = n·uⁿ⁻¹·u′';det=[['u',t.a]]}
+    else{rule='derivación logarítmica: (uᵛ)′ = uᵛ·(v′·ln u + v·u′/u)';det=[['u',t.a],['v',t.b]]}
+  }
+  else if(t.k==='f'){
+    const nm=FNM[t.n]||t.n;
+    if(isV(t.a,v))rule=`derivada básica: (${nm}(x))′ = ${FDER[t.n]||'…'}`.replace(/\(u\)/g,'(x)').replace(/u/g,'x').replace(/ᵘ/g,'ˣ');
+    else{rule=`regla de la cadena: (${nm}(u))′ = ${(FDER[t.n]||'…')}·u′`;det=[['u',t.a]]}
+  }
+  else{rule='derivada de una suma: término a término';det=[['u',t.a],['w',t.b]]}
+  if(det){
+    stp(`${P(t)}: ${rule}`);
+    stp(det.map(([n,x])=>`${n} = ${P(x)}  →  ${n}′ = ${Dd(x)}`).join(';  '));
+    stp(`(${P(t)})′ = ${Dd(t)}`);
+  }else stp(`(${P(t)})′ = ${Dd(t)}   [${rule}]`);
+}
+function derivSteps(f,v){
+  const ts=[];const walk=n=>{if(n.k==='+'||n.k==='-'){walk(n.a);walk(n.b)}else ts.push(n)};walk(f);
+  if(ts.length>1)stp('Es una suma/resta: derivamos término a término.');
+  ts.slice(0,6).forEach(t=>dTerm(t,v));
+  if(ts.length>1)stp('Juntamos las derivadas y simplificamos.');
+}
+function iLabel(c,v){
+  if(!has(c,v))return'integral de una constante: ∫k dx = kx';
+  if(isV(c,v))return'∫x dx = x²/2';
+  if(c.k==='^'&&isV(c.a,v)&&isN(c.b))return c.b.v===-1?'∫1/x dx = ln|x|':'regla de la potencia: ∫xⁿ dx = xⁿ⁺¹/(n+1)';
+  if(c.k==='/'&&isN(c.a)&&isV(c.b,v))return'∫1/x dx = ln|x|';
+  if(c.k==='f'&&isV(c.a,v)){
+    const T={sin:'∫sen x dx = −cos x',cos:'∫cos x dx = sen x',exp:'∫eˣ dx = eˣ',ln:'por partes: ∫ln x dx = x·ln x − x',tan:'∫tan x dx = −ln|cos x|',sec:'∫sec x dx = ln|sec x + tan x|',sqrt:'∫√x dx = (2/3)·x^(3/2)',atan:'por partes',cosh:'∫cosh x dx = senh x',sinh:'∫senh x dx = cosh x'};
+    return T[c.n]||'integral básica';
+  }
+  if(c.k==='f'&&lin(c.a,v))return'integral básica con sustitución lineal u = ax + b, du = a dx';
+  if(c.k==='^'&&lin(c.a,v)&&isN(c.b))return'sustitución lineal u = ax + b';
+  if(c.k==='*')return'sustitución u o integración por partes: ∫u dw = u·w − ∫w du';
+  if(c.k==='/')return'sustitución, fracciones parciales o completar cuadrados';
+  return'sustitución u = g(x), du = g′(x) dx';
+}
+function integSteps(f,v,G){
+  const ts=[];const walk=(n,sg)=>{if(n.k==='+'){walk(n.a,sg);walk(n.b,sg)}else if(n.k==='-'){walk(n.a,sg);walk(n.b,-sg)}else if(n.k==='neg')walk(n.a,-sg);else ts.push([sg,n])};walk(f,1);
+  if(ts.length>1)stp('Integral de una suma: se integra término a término (linealidad).');
+  ts.slice(0,6).forEach(([sg,t])=>{
+    let k=1,c=t;if(c.k==='*'&&isN(c.a)){k=c.a.v;c=c.b}
+    if(k!==1)stp(`La constante ${fmtN(k)} sale de la integral: ∫ k·g dx = k·∫ g dx`);
+    let Gc=null;try{Gc=integ(normT(c),v)}catch(e){}
+    stp(`∫ ${fq(c)} d${v} = ${Gc?fq(simp(Gc)):'…'}   [${iLabel(c,v)}]${sg<0?'   (el término se resta)':''}`);
+  });
+  stp('Sumamos las primitivas y añadimos la constante C.');
+  try{stp(`Comprobación: derivando F obtenemos F′(${v}) = ${fq(simp(D(G,v)))}, que coincide con f.`)}catch(e){}
+}
+function euSteps(L,onlyG){
+  stp('Algoritmo de Euclides: se divide y se repite con el resto hasta que el resto sea 0.');
+  let cur=L[0];
+  for(let i=1;i<L.length;i++){
+    let a=Math.max(cur,L[i]),b=Math.min(cur,L[i]);
+    while(b){stp(`${a} = ${b} × ${Math.floor(a/b)} + ${a%b}`);[a,b]=[b,a%b]}
+    stp(`MCD(${cur}, ${L[i]}) = ${a}`);
+    if(onlyG)cur=a;else{const l=cur/a*L[i];stp(`MCM(${cur}, ${L[i]}) = ${cur} × ${L[i]} ÷ ${a} = ${l}`);cur=l}
+  }
+}
+function primeSteps(n){
+  if(n<2){stp('Los números primos empiezan en 2.');return}
+  const r=Math.floor(Math.sqrt(n));
+  stp(`Basta probar divisores primos hasta √${n} ≈ ${fmtN(Math.sqrt(n))}`);
+  const tested=[];
+  for(let p=2;p<=r;p++){
+    if(!isPrime(p))continue;
+    if(n%p===0){stp(`${n} ÷ ${p} = ${n/p} (exacto), así que ${p} lo divide`);return}
+    tested.push(p);
+  }
+  stp(tested.length?`Probamos ${tested.length>12?tested.slice(0,12).join(', ')+'…':tested.join(', ')}: ninguno lo divide`:`No hay primos menores o iguales que √${n} que probar`);
+}
+function factSteps(n){
+  let x=n;stp(`Dividimos entre los primos más pequeños posibles:`);
+  for(let f=2;f*f<=x;f++)while(x%f===0){stp(`${x} ÷ ${f} = ${x/f}`);x/=f}
+  if(x>1&&x!==n)stp(`${x} ya es primo, terminamos`);
+}
+function gaussLog(M0,VS){
+  const n=M0.length,M=M0.map(r=>[...r]);
+  const rs=r=>'['+r.map((x,i)=>(i===n?'| ':'')+fmtN(Math.round(x*1e6)/1e6)).join('  ')+']';
+  const sh=()=>M.map(rs).join('  ');
+  stp('Escribimos el sistema como matriz aumentada: '+sh());
+  stp('Método de Gauss-Jordan: hacemos ceros fuera de la diagonal con operaciones entre filas.');
+  for(let i=0;i<n;i++){
+    let p=i;for(let r=i+1;r<n;r++)if(Math.abs(M[r][i])>Math.abs(M[p][i]))p=r;
+    if(Math.abs(M[p][i])<1e-12)return;
+    if(p!==i){stp(`F${i+1} ↔ F${p+1}  (pivote más grande)`);[M[i],M[p]]=[M[p],M[i]]}
+    for(let r=0;r<n;r++)if(r!==i){
+      const f=M[r][i]/M[i][i];
+      if(Math.abs(f)>1e-12){stp(`F${r+1} ← F${r+1} − (${fmtN(Math.round(f*1e6)/1e6)})·F${i+1}`);for(let c=i;c<=n;c++)M[r][c]-=f*M[i][c]}
+    }
+    stp('Matriz: '+sh());
+  }
+  stp('Despejamos: '+VS.map((x,i)=>`${x} = ${fmtN(Math.round(M[i][n]*1e6)/1e6)} ÷ ${fmtN(Math.round(M[i][i]*1e6)/1e6)}`).join(';  '));
+}
 function solve(text,t){
-  try{return solve_(text,t)}catch(e){return null}
+  ST.length=0;
+  try{
+    const r=solve_(text,t);
+    if(r&&ST.length){const body=ST.map((x,i)=>`${i+1}. ${x}`).join('\n');return `Procedimiento:\n${body}\n\n${/\n/.test(r)?'Resultado:\n':'Resultado: '}${r}`}
+    return r;
+  }catch(e){return null}
 }
 function solve_(text,t){
   const hasDigit=/\d/.test(t),hasEq=/=/.test(t)&&/[a-z]/.test(t);
@@ -568,6 +716,13 @@ function solve_(text,t){
       const cnt={};L.forEach(x=>cnt[x]=(cnt[x]||0)+1);const mx=Math.max(...Object.values(cnt)),mo=Object.keys(cnt).filter(k=>cnt[k]===mx);
       const vp=L.reduce((s,x)=>s+(x-mean)**2,0)/n,vm=L.reduce((s,x)=>s+(x-mean)**2,0)/(n-1);
       const k=m[1];
+      const sum=L.reduce((a,b)=>a+b),ss=L.reduce((q,x)=>q+(x-mean)**2,0);
+      stp(`Datos: ${L.map(fmtN).join(', ')}  (n = ${n})`);
+      if(/prom|media$/.test(k)||k==='media'){stp(`Suma = ${L.map(fmtN).join(' + ')} = ${fmtN(sum)}`);stp(`Media = suma ÷ n = ${fmtN(sum)} ÷ ${n}`)}
+      else if(k==='mediana'){stp(`Ordenamos de menor a mayor: ${srt.map(fmtN).join(', ')}`);stp(n%2?`n = ${n} es impar: la mediana es el dato central (posición ${(n+1)/2})`:`n = ${n} es par: promedio de los dos centrales (posiciones ${n/2} y ${n/2+1}): (${fmtN(srt[n/2-1])} + ${fmtN(srt[n/2])}) ÷ 2`)}
+      else if(k==='moda'){stp(`Contamos cuántas veces aparece cada valor: ${Object.keys(cnt).map(x=>x+' → '+cnt[x]).join(',  ')}`)}
+      else if(k==='rango'){stp('Rango = máximo − mínimo')}
+      else{stp(`Media = ${fmtN(sum)} ÷ ${n} = ${fmtN(mean)}`);if(n<=8)stp(`Desviaciones al cuadrado: ${L.map(x=>`(${fmtN(x)} − ${fmtN(mean)})² = ${fmtN((x-mean)**2)}`).join(';  ')}`);stp(`Suma de cuadrados = ${fmtN(ss)}`);stp(`Varianza poblacional = ${fmtN(ss)} ÷ ${n} = ${fmtN(vp)};  muestral = ${fmtN(ss)} ÷ ${n-1} = ${fmtN(vm)}`);if(k!=='varianza')stp('Desviación estándar = √varianza')}
       if(/prom|media$/.test(k)||k==='media')return`Media (promedio) = ${fmtN(mean)}  (suma ${fmtN(L.reduce((a,b)=>a+b))} ÷ ${n} datos).`;
       if(k==='mediana')return`Mediana = ${fmtN(med)}  (datos ordenados: ${srt.map(fmtN).join(', ')}).`;
       if(k==='moda')return mx===1?'No hay moda: ningún valor se repite.':`Moda = ${mo.map(x=>fmtN(+x)).join(', ')}  (aparece ${mx} veces).`;
@@ -579,44 +734,46 @@ function solve_(text,t){
   if(m=t.match(/\b(mcd|mcm|maximo comun divisor|minimo comun multiplo)\b.*?(?:de|:)\s*((?:\d+[\s,;y]*){2,})/)){
     const L=(m[2].match(/\d+/g)||[]).map(Number);
     if(L.length>=2){
-      const g=L.reduce(gcd),l=L.reduce((a,b)=>a/gcd(a,b)*b);
+      const g=L.reduce(gcd),l=L.reduce((a,b)=>a/gcd(a,b)*b);euSteps(L,/mcd|maximo/.test(m[1]));
       return/mcd|maximo/.test(m[1])?`MCD(${L.join(', ')}) = ${g}.`:`MCM(${L.join(', ')}) = ${l}.`;
     }
   }
   if(m=t.match(/(?:es primo|numero primo)\s*(?:el )?(\d+)|(?:el )?(\d+)\s*(?:es|sera) (?:un )?(?:numero )?primo/)){
-    const n=+(m[1]||m[2]);if(n<1e12)return isPrime(n)?`Sí, ${n} es primo.`:n<2?`${n} no es primo.`:`No, ${n} no es primo: ${n} = ${expStr(factorize(n))}.`;
+    const n=+(m[1]||m[2]);if(n<1e12)primeSteps(n);if(n<1e12)return isPrime(n)?`Sí, ${n} es primo.`:n<2?`${n} no es primo.`:`No, ${n} no es primo: ${n} = ${expStr(factorize(n))}.`;
   }
   if(m=t.match(/(?:factoriza|descompon|descomposicion(?: en factores primos)?|factores primos)\w*\s*(?:de |del |:)?\s*(\d+)/)){
-    const n=+m[1];if(n>=2&&n<1e13){const f=factorize(n);return f.length===1?`${n} es primo.`:`${n} = ${expStr(f)}.`}
+    const n=+m[1];if(n>=2&&n<1e13){const f=factorize(n);if(f.length>1)factSteps(n);return f.length===1?`${n} es primo.`:`${n} = ${expStr(f)}.`}
   }
   if(m=t.match(/divisores (?:de |del )?(\d+)/)){
-    const n=+m[1];if(n>=1&&n<1e7){const d=[];for(let i=1;i*i<=n;i++)if(n%i===0){d.push(i);if(i*i!==n)d.push(n/i)}d.sort((a,b)=>a-b);return`Divisores de ${n}: ${d.join(', ')}  (${d.length} en total).`}
+    const n=+m[1];if(n>=1&&n<1e7){const d=[];for(let i=1;i*i<=n;i++)if(n%i===0){d.push(i);if(i*i!==n)d.push(n/i)}d.sort((a,b)=>a-b);stp(`Probamos i desde 1 hasta √${n} ≈ ${fmtN(Math.sqrt(n))}: cada i que divide exacto da el par (i, ${n}÷i)`);stp('Pares: '+d.filter(x=>x*x<=n).map(x=>`(${x}, ${n/x})`).join(' '));return`Divisores de ${n}: ${d.join(', ')}  (${d.length} en total).`}
   }
   if(m=t.match(/primos? (?:hasta|menores (?:que|a)|entre 1 y) (\d+)/)){
-    const n=+m[1];if(n<=500){const o=[];for(let i=2;i<=n;i++)if(isPrime(i))o.push(i);return`Primos hasta ${n} (${o.length}): ${o.join(', ')}.`}
+    const n=+m[1];if(n<=500){stp('Probamos cada número desde 2: es primo si ningún primo menor o igual que su raíz lo divide.');const o=[];for(let i=2;i<=n;i++)if(isPrime(i))o.push(i);return`Primos hasta ${n} (${o.length}): ${o.join(', ')}.`}
   }
   if(m=t.match(/fibonacci (?:de |del |numero |n ?= ?)?(\d+)|(\d+)\s*(?:o |º |er |avo )?(?:numero )?de fibonacci/)){
-    const n=+(m[1]||m[2]);if(n<=90){let a=0,b=1;for(let i=0;i<n;i++)[a,b]=[b,a+b];return`Fibonacci(${n}) = ${a}  (serie: 0, 1, 1, 2, 3, 5, 8, 13…).`}
+    const n=+(m[1]||m[2]);if(n<=90){if(n<=25){const q=[0,1];for(let i=2;i<=n;i++)q.push(q[i-1]+q[i-2]);stp('Cada término es la suma de los dos anteriores: '+q.slice(0,n+1).join(', '))}else stp('Cada término es la suma de los dos anteriores (se itera hasta el término '+n+').');let a=0,b=1;for(let i=0;i<n;i++)[a,b]=[b,a+b];return`Fibonacci(${n}) = ${a}  (serie: 0, 1, 1, 2, 3, 5, 8, 13…).`}
   }
   if(m=t.match(/(?:convierte|pasa|pasar|convertir|transforma)\s+(?:el )?(?:numero )?(\d+)\s+(?:de decimal )?a (binario|hexadecimal|octal)/)){
-    const n=+m[1],b={binario:2,hexadecimal:16,octal:8}[m[2]];return`${n} en ${m[2]} es ${n.toString(b).toUpperCase()}.`;
+    const n=+m[1],b={binario:2,hexadecimal:16,octal:8}[m[2]];
+    {let x=n;const rs=[];stp(`Dividimos entre ${b} y anotamos los restos:`);while(x>0&&rs.length<64){stp(`${x} ÷ ${b} = ${Math.floor(x/b)}  resto ${x%b}${x%b>9?' ('+(x%b).toString(b).toUpperCase()+')':''}`);rs.push((x%b).toString(b).toUpperCase());x=Math.floor(x/b)}stp(`Leemos los restos de abajo hacia arriba: ${rs.reverse().join('')}`)}
+    return`${n} en ${m[2]} es ${n.toString(b).toUpperCase()}.`;
   }
   if(m=t.match(/(?:convierte|pasa|pasar|convertir|transforma)?\s*(?:el )?(?:numero )?([01]+|[0-9a-f]+|[0-7]+)\s+(?:de |en )?(binario|hexadecimal|octal)\s+a decimal/)){
-    const b={binario:2,hexadecimal:16,octal:8}[m[2]],n=parseInt(m[1],b);if(!isNaN(n))return`${m[1].toUpperCase()} en base ${b} es ${n} en decimal.`;
+    const b={binario:2,hexadecimal:16,octal:8}[m[2]],n=parseInt(m[1],b);if(!isNaN(n)){const ds=m[1].toUpperCase().split('');stp(`Multiplicamos cada dígito por la base elevada a su posición: ${ds.map((d,i)=>`${d}·${b}^${ds.length-1-i}`).join(' + ')}`);stp(`= ${ds.map((d,i)=>fmtN(parseInt(d,b)*Math.pow(b,ds.length-1-i))).join(' + ')}`)}if(!isNaN(n))return`${m[1].toUpperCase()} en base ${b} es ${n} en decimal.`;
   }
   if(m=t.match(/(?:combinaciones|permutaciones|variaciones)\s+de\s+(\d+)\s+(?:elementos\s+)?(?:en|tomados de|de a|tomando)\s+(\d+)/)){
-    const n=+m[1],r=+m[2];if(r<=n&&n<=170){const P=FACT(n)/FACT(n-r),C=Math.round(P/FACT(r));return/combinac/.test(t)?`C(${n},${r}) = ${n}!/(${r}!·${n-r}!) = ${fmtN(C)}.`:`P(${n},${r}) = ${n}!/${n-r}! = ${fmtN(P)}.`}
+    const n=+m[1],r=+m[2];if(r<=n&&n<=170){const P=FACT(n)/FACT(n-r),C=Math.round(P/FACT(r));if(r<=8&&n<=40){const fl=[];for(let i=0;i<r;i++)fl.push(n-i);stp(`Numerador: n·(n−1)·…·(n−r+1) = ${fl.join(' × ')} = ${fmtN(P)}`);if(/combinac/.test(t))stp(`Denominador: r! = ${r}! = ${fmtN(FACT(r))}`);stp(/combinac/.test(t)?`C(${n},${r}) = ${fmtN(P)} ÷ ${fmtN(FACT(r))}`:`P(${n},${r}) = ${fmtN(P)}`)}return/combinac/.test(t)?`C(${n},${r}) = ${n}!/(${r}!·${n-r}!) = ${fmtN(C)}.`:`P(${n},${r}) = ${n}!/${n-r}! = ${fmtN(P)}.`}
   }
   if(m=t.match(/suma de los (?:primeros )?(?:numeros|enteros|naturales)\s*(?:del |de |desde )?\s*(\d+)\s*(?:al|a|hasta el|hasta)\s*(\d+)/)){
-    const a=+m[1],b=+m[2];if(b>=a){const s=(a+b)*(b-a+1)/2;return`La suma de ${a} a ${b} es ${fmtN(s)}  (fórmula n(a+b)/2 con n = ${b-a+1} términos).`}
+    const a=+m[1],b=+m[2];if(b>=a){const s=(a+b)*(b-a+1)/2;stp(`Número de términos: n = ${b} − ${a} + 1 = ${b-a+1}`);stp(`Fórmula de Gauss: S = n·(primero + último) ÷ 2 = ${b-a+1}·(${a} + ${b}) ÷ 2`);return`La suma de ${a} a ${b} es ${fmtN(s)}  (fórmula n(a+b)/2 con n = ${b-a+1} términos).`}
   }
   if(m=t.match(/simplifica\w*\s*(?:la fraccion\s*)?(-?\d+)\s*\/\s*(\d+)/)){
-    const a=+m[1],b=+m[2],g=gcd(a,b);if(b)return g===1?`${a}/${b} ya es irreducible.`:`${a}/${b} = ${a/g}/${b/g}  (dividiendo entre ${g}).`;
+    const a=+m[1],b=+m[2],g=gcd(a,b);if(b&&Math.abs(a)>0&&Math.abs(b)>0)euSteps([Math.abs(a),b],true);if(b)return g===1?`${a}/${b} ya es irreducible.`:`${a}/${b} = ${a/g}/${b/g}  (dividiendo entre ${g}).`;
   }
   if(m=t.match(/determinante de\s*\[\s*\[([^\]]+)\]\s*,\s*\[([^\]]+)\]\s*(?:,\s*\[([^\]]+)\]\s*)?\]/)){
     const rows=[m[1],m[2],m[3]].filter(Boolean).map(r=>r.split(/[,;\s]+/).filter(Boolean).map(x=>parseFloat(x)));
-    if(rows.length===2&&rows.every(r=>r.length===2)){const[[a,b],[c,d]]=rows;return`Determinante = ${fmtN(a*d-b*c)}  (ad − bc).`}
-    if(rows.length===3&&rows.every(r=>r.length===3)){const[[a,b,c],[d,e,f],[g,h,i]]=rows;return`Determinante = ${fmtN(a*(e*i-f*h)-b*(d*i-f*g)+c*(d*h-e*g))}  (regla de Sarrus/cofactores).`}
+    if(rows.length===2&&rows.every(r=>r.length===2)){const[[a,b],[c,d]]=rows;stp(`Fórmula: ad − bc = (${fmtN(a)})(${fmtN(d)}) − (${fmtN(b)})(${fmtN(c)}) = ${fmtN(a*d)} − ${fmtN(b*c)}`);return`Determinante = ${fmtN(a*d-b*c)}  (ad − bc).`}
+    if(rows.length===3&&rows.every(r=>r.length===3)){const[[a,b,c],[d,e,f],[g,h,i]]=rows;stp(`Desarrollo por cofactores de la primera fila: a(ei − fh) − b(di − fg) + c(dh − eg)`);stp(`= ${fmtN(a)}·(${fmtN(e*i)} − ${fmtN(f*h)}) − ${fmtN(b)}·(${fmtN(d*i)} − ${fmtN(f*g)}) + ${fmtN(c)}·(${fmtN(d*h)} − ${fmtN(e*g)})`);stp(`= ${fmtN(a)}·${fmtN(e*i-f*h)} − ${fmtN(b)}·${fmtN(d*i-f*g)} + ${fmtN(c)}·${fmtN(d*h-e*g)}`);return`Determinante = ${fmtN(a*(e*i-f*h)-b*(d*i-f*g)+c*(d*h-e*g))}  (regla de Sarrus/cofactores).`}
   }
   /* --- geometría rápida --- */
   const gnum='(\\d+(?:[.,]\\d+)?)',gv=x=>parseFloat(String(x).replace(',','.'));
@@ -642,7 +799,8 @@ function solve_(text,t){
     const f=parse(body),vs=[...vars(f)];if(vs.length>1)return null;const v=vs[0]||'x';
     if(!vs.length)return'La derivada de una constante es 0.';
     const d=simp(D(f,v));let out=`f(${v}) = ${show(f)}\nf′(${v}) = ${show(d)}`;
-    if(at!==null){const val=ev(d,{[v]:at});out+=`\nEn ${v} = ${fmtN(at)}: f′ = ${fmtN(val)}`}
+    derivSteps(f,v);
+    if(at!==null){const val=ev(d,{[v]:at});stp(`Sustituimos ${v} = ${fmtN(at)} en f′: ${fx(subs(d,V(v),N(at)))} = ${fmtN(val)}`);out+=`\nEn ${v} = ${fmtN(at)}: f′ = ${fmtN(val)}`}
     return out;
   }
   /* integral */
@@ -661,11 +819,13 @@ function solve_(text,t){
       const chk=(()=>{try{const dG=D(G,v);return vals(dG,v).every((y,i)=>{const z=vals(f,v)[i];return isFinite(z)?close(y,z)||Math.abs(y-z)<1e-6:true})}catch(e){return false}})();
       if(!chk)G=null;
     }
+    if(G)integSteps(f,v,G);
     if(lim){
       const[a,b]=lim;let val=null,exact=false;
-      if(G&&isFinite(a)&&isFinite(b)){const Fa=ev(G,{[v]:a}),Fb=ev(G,{[v]:b});if(isFinite(Fa)&&isFinite(Fb)){val=Fb-Fa;exact=true}}
+      if(G&&isFinite(a)&&isFinite(b)){const Fa=ev(G,{[v]:a}),Fb=ev(G,{[v]:b});if(isFinite(Fa)&&isFinite(Fb)){val=Fb-Fa;exact=true;stp(`Regla de Barrow: ∫ = F(${lim[3]}) − F(${lim[2]})`);stp(`F(${lim[3]}) = ${fmtN(Fb)};  F(${lim[2]}) = ${fmtN(Fa)}`);stp(`${fmtN(Fb)} − (${fmtN(Fa)})`)}}
       if(val===null&&isFinite(a)){
         const fF=x=>{try{return ev(f,{[v]:x})}catch(e){return NaN}};
+        stp('No hay primitiva elemental sencilla: se aproxima el área con la regla de Simpson.');
         if(isFinite(b))val=simpson(fF,a,b);
         else{val=simpson(fF,a,a+200,40000)}
         if(!isFinite(val))return'Esa integral no converge o tiene un punto problemático en el intervalo.';
@@ -684,6 +844,13 @@ function solve_(text,t){
     const f=parse(m[1].replace(/\s*(?:cuando|si|para)\s*$/,'')),v=m[2],a=m[3];
     const at=a==='infinito'||a==='+infinito'?Infinity:a==='-infinito'?-Infinity:a==='pi'?PI:parseFloat(a);
     const r=limit(x=>ev(f,{[v]:x}),at);
+    {const g=x=>{try{return ev(f,{[v]:x})}catch(e){return NaN}};
+     if(isFinite(at)){const d0=g(at);
+       if(isFinite(d0)){stp(`Sustituimos ${v} = ${a}: ${fx(subs(f,V(v),N(at)))} = ${fmtN(d0)}  (sin indeterminación)`)}
+       else{stp(`Al sustituir ${v} = ${a} aparece una indeterminación (0/0 u otra).`);
+         if(f.k==='/'){try{const dn=simp(D(f.a,v)),dd=simp(D(f.b,v)),q=ev(dn,{[v]:at})/ev(dd,{[v]:at});if(isFinite(q))stp(`Regla de L'Hôpital: lim f/g = lim f′/g′ = (${fx(dn)}) ÷ (${fx(dd)}); en ${v} = ${a}: ${fmtN(q)}`)}catch(e){}}
+         stp(`Comprobamos acercándonos a ${a}: `+[-0.01,-0.001,0.001,0.01].map(h=>`f(${fmtN(Math.round((at+h)*1e6)/1e6)}) ≈ ${fmtN(g(at+h))}`).join(';  '))}}
+     else{const sg=at<0?-1:1;stp(`Evaluamos valores cada vez ${sg>0?'más grandes':'más negativos'}: `+[10,100,1000,1e6].map(x=>`f(${fmtN(sg*x)}) ≈ ${fmtN(g(sg*x))}`).join(';  '))}}
     if(r===null)return'No pude estimar ese límite numéricamente.';
     if(r==='lat')return`El límite no existe: por la izquierda y por la derecha de ${a} da valores distintos.`;
     return`lim ${v}→${a.replace('infinito','∞')} de ${show(f)} = ${isFinite(r)?fmtN(r):(r>0?'+∞':'−∞')}`;
@@ -691,7 +858,7 @@ function solve_(text,t){
   if(!/=\s*(?:-?[\d.]+|pi)\s*$/.test(s)||!/\b(?:cuando|si|para|con|en)\b/.test(s)){}
   if(m=s.match(/^(.+?)\s+(?:cuando|si|para|con|en)\s+([a-z])\s*=\s*(-?[\d.]+|pi)\s*$/)){
     const f=parse(m[1].replace(/^[a-z]\s*=/,'')),v=m[2],a=m[3]==='pi'?PI:parseFloat(m[3]);
-    if([...vars(f)].every(x=>x===v)){const val=ev(f,{[v]:a});return`Con ${v} = ${fmtN(a)}: ${show(f)} = ${fmtN(val)}`}
+    if([...vars(f)].every(x=>x===v)){const val=ev(f,{[v]:a});try{const fr=parse(m[1].replace(/^[a-z]\s*=/,''),true),sr=subs(fr,V(v),N(a));stp(`Sustituimos ${v} = ${fmtN(a)}: ${fx(sr)}`);const ch=arithChain(sr);if(ch)ch.slice(0,-1).forEach(x=>stp('= '+fx(x)))}catch(e){}return`Con ${v} = ${fmtN(a)}: ${show(f)} = ${fmtN(val)}`}
   }
   /* ecuaciones y sistemas */
   if(/=/.test(s)){
@@ -704,10 +871,30 @@ function solve_(text,t){
       const c=polyFit(f);
       if(c&&c.length>1){
         const d=c.length-1,rs=roots([...c]);
-        let out=`Ecuación de grado ${d}: ${polyStr(c,v)} = 0\n`;
-        if(d===2){
-          const[C,B,A]=c,Dd=B*B-4*A*C;out+=`Discriminante = (${fmtN(B)})² − 4·(${fmtN(A)})·(${fmtN(C)}) = ${fmtN(Dd)}\n`;
-          if(B!==0&&Dd>0&&Number.isInteger(Dd)&&rad(Dd)&&!Number.isInteger(Math.sqrt(Dd)))out+=`${v} = (${fmtN(-B)} ± ${rad(Dd)}) / ${fmtN(2*A)}\n`;
+        let out='';
+        stp(`Pasamos todo a un lado: ${polyStr(c,v)} = 0`);
+        const sg=x=>x<0?`(${fmtN(x)})`:fmtN(x);
+        if(d===1){stp(`${polyStr([0,c[1]],v)} = ${fmtN(-c[0])}`);stp(`${v} = ${fmtN(-c[0])} ÷ ${sg(c[1])}`)}
+        else if(d===2){
+          const[C,B,A]=c,Dd=B*B-4*A*C;
+          stp(`Ecuación cuadrática: a = ${fmtN(A)}, b = ${fmtN(B)}, c = ${fmtN(C)}`);
+          stp(`Fórmula general: ${v} = (−b ± √(b² − 4ac)) ÷ 2a`);
+          stp(`Discriminante: Δ = b² − 4ac = ${sg(B)}² − 4·${sg(A)}·${sg(C)} = ${fmtN(Dd)}`);
+          if(Dd>1e-12){const sq=Math.sqrt(Dd);
+            stp(`Δ > 0: hay dos soluciones reales distintas`);
+            if(Number.isInteger(Dd)&&rad(Dd)&&!Number.isInteger(sq))stp(`${v} = (${fmtN(-B)} ± ${rad(Dd)}) ÷ ${fmtN(2*A)}`);
+            else stp(`√Δ = ${fmtN(sq)}`);
+            stp(`${v}₁ = (${fmtN(-B)} + ${fmtN(sq)}) ÷ ${fmtN(2*A)};  ${v}₂ = (${fmtN(-B)} − ${fmtN(sq)}) ÷ ${fmtN(2*A)}`)}
+          else if(Math.abs(Dd)<=1e-12){stp(`Δ = 0: una solución doble ${v} = −b ÷ 2a = ${fmtN(-B)} ÷ ${fmtN(2*A)}`)}
+          else stp(`Δ < 0: no hay raíces reales; las soluciones son complejas (√Δ = ${fmtN(Math.sqrt(-Dd))}·i)`);
+        }else{
+          stp(`Ecuación de grado ${d}: no hay fórmula corta; se buscan raíces racionales (divisores del término independiente ÷ divisores del coeficiente principal) y se usa un método numérico`);
+          if(c.every(x=>Math.abs(x-Math.round(x))<1e-9)&&Math.abs(c[0])>0&&Math.abs(c[0])<1e6){
+            const pa=[],dv=x=>{x=Math.abs(Math.round(x));const o=[];for(let i=1;i<=x;i++)if(x%i===0)o.push(i);return o};
+            const evp=x=>c.reduce((q,co,i)=>q+co*Math.pow(x,i),0);
+            dv(c[0]).forEach(p=>dv(c[d]).forEach(q=>{[p/q,-p/q].forEach(r=>{if(Math.abs(evp(r))<1e-7&&!pa.some(z=>Math.abs(z-r)<1e-9))pa.push(r)})}));
+            if(pa.length)stp('Raíces racionales que anulan el polinomio: '+pa.map(r=>`${v} = ${fmtN(r)}`).join(', ')+'  (factores '+pa.map(r=>`(${v} ${r<0?'+':'−'} ${fmtN(Math.abs(r))})`).join('')+')');
+          }
         }
         const real=rs.filter(r=>!r.im);
         const uniq=[];rs.forEach(r=>{if(!uniq.some(u=>Math.abs(u.re-r.re)<1e-6&&Math.abs(u.im-r.im)<1e-6))uniq.push(r)});
@@ -717,6 +904,7 @@ function solve_(text,t){
       }
       if(c&&c.length===1)return Math.abs(c[0])<1e-9?'Se cumple para cualquier valor (infinitas soluciones).':'No tiene solución.';
       /* no polinómica: buscar raíces numéricamente */
+      stp(`No es una ecuación polinómica: se busca dónde ${polyLabel(prs[0],v)} cambia de signo entre −50 y 50 y se afina por bisección.`);
       const rs=[];let prev=f(-50);
       for(let x=-49.95;x<=50;x+=0.05){const y=f(x);if(isFinite(prev)&&isFinite(y)&&prev*y<=0&&Math.abs(prev-y)<1e3){let a=x-0.05,b=x;for(let i=0;i<60;i++){const mid=(a+b)/2;if(f(a)*f(mid)<=0)b=mid;else a=mid}const r=(a+b)/2;if(Math.abs(f(r))<1e-6&&!rs.some(q=>Math.abs(q-r)<1e-4))rs.push(r)}prev=y}
       if(!rs.length)return'No encontré soluciones reales entre −50 y 50.';
@@ -730,6 +918,7 @@ function solve_(text,t){
         const chk=Array(n).fill(0).map((_,i)=>i+2);if(!close(f(chk),c0+row.reduce((s,a,i)=>s+a*chk[i],0)))return null;
         M.push([...row,-c0]);
       }
+      try{stp('Ecuaciones: '+eqs.map(e=>e.trim()).join(';  '));gaussLog(M,VS)}catch(e){}
       const sol=gauss(M);
       if(!sol)return'El sistema no tiene solución única (puede ser incompatible o tener infinitas).';
       return'Solución del sistema:\n'+VS.map((x,i)=>`${x} = ${fmtN(Math.round(sol[i]*1e9)/1e9)}`).join('\n');
@@ -747,13 +936,16 @@ function solve_(text,t){
   const val=ev(f,{});
   if(!isFinite(val)||isNaN(val))return'Eso no se puede calcular (división entre cero o fuera del dominio).';
   const disp=s.replace(/\*/g,'×').replace(/sqrt\s*/g,'√').replace(/cbrt\s*/g,'∛').replace(/\bpi\b/g,'π').replace(/\s+/g,' ');
+  try{arithSteps(parse(s,true))}catch(e){}
   let out=`${disp.replace(/\((\d+(?:\.\d+)?)\)/g,'$1')} = ${fmtN(val)}`;
+  if(f.k==='f'&&f.n==='sqrt'&&isN(f.a)&&Number.isInteger(f.a.v))radSteps(f.a.v);
   if(f.k==='f'&&f.n==='sqrt'&&isN(f.a)&&Number.isInteger(f.a.v)){
     const r=rad(f.a.v);if(r&&!/^\d+$/.test(r))out=r==='√'+f.a.v?`√${f.a.v} ≈ ${fmtN(val)}`:`√${f.a.v} = ${r} ≈ ${fmtN(val)}`;
     else if(r)out=`√${f.a.v} = ${r}`;
   }else if(!Number.isInteger(val)&&!/\//.test(s)){const r=ratio(val);if(r&&r[1]<=1000&&r[1]>1&&Math.abs(val)<1e6)out+=`  (= ${r[0]}/${r[1]})`}
   return out;
 }
+function polyLabel(p,v){try{return 'f('+v+') = '+fx(p)}catch(e){return 'f('+v+')'}}
 function polyStr(c,v){
   const parts=[];
   for(let k=c.length-1;k>=0;k--){
