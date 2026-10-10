@@ -315,6 +315,7 @@ function psych(A){
 }
 
 function analyze(text){
+  if(window.CEREBRO)try{text=CEREBRO.fixText(text)}catch(e){}
   const t=norm(text);
   const A={t,topics:{},hits:{},likes:[],neg:[],kw:[],bad:false,good:false,question:/\?|^(que|cual|cuales|como|donde|quien|puedes)\b|recomiend|sugier|ideas|que hago|plan para/.test(t)};
   const add=(c,w)=>{A.topics[c]=(A.topics[c]||0)+1;const l=(A.hits[c]=A.hits[c]||[]);if(!l.includes(w))l.push(w)};
