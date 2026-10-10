@@ -69,7 +69,7 @@ E('resp-478','respiracion 4[- ]?7[- ]?8|tecnica 4 7 8',
  ['Respiración 4-7-8: inhala por la nariz 4 segundos, sostén 7 y exhala por la boca 8. Repite 4 veces. Activa el sistema de calma del cuerpo; si te mareas, vuelve a respirar normal.']);
 E('resp-caja','respiracion (de )?(caja|cuadrada)|box breathing',
  ['Respiración de caja: inhala 4 segundos, sostén 4, exhala 4, sostén 4. Haz 5 rondas. La usan hasta atletas y pilotos para bajar la tensión.']);
-E('grounding','5[- ]?4[- ]?3[- ]?2[- ]?1|tecnica de (anclaje|grounding)|como (me )?ancl',
+E('grounding','(^|[^0-9])5[- ]?4[- ]?3[- ]?2[- ]?1($|[^0-9])|tecnica de (anclaje|grounding)|como (me )?ancl',
  ['Técnica 5-4-3-2-1: nombra 5 cosas que ves, 4 que puedes tocar, 3 que oyes, 2 que hueles y 1 que saboreas. Te trae al presente cuando la mente se acelera.']);
 E('relajacion-muscular','relajacion muscular|jacobson|relajar (el )?cuerpo|como me relajo|tecnicas? de relajacion',
  ['Relajación muscular: tensa un grupo (puños, brazos, hombros, cara, piernas) 5 segundos y suéltalo 10, notando el contraste. Recorre el cuerpo de pies a cabeza. Va bien antes de dormir.','Para relajarte: respira lento (4 dentro, 6 fuera), suelta los hombros, relaja la mandíbula y estira el cuello. En Calmar tienes un ejercicio guiado.']);
@@ -1167,6 +1167,97 @@ E('ano-nuevo','metas de ano nuevo|propositos de ano nuevo|como cumplo mis propos
 E('cumple-triste','cumpleanos (triste|solo)|nadie (se acordo|me saludo) de mi cumpleanos',
  ['Siento que se sienta así. Hoy, {n}, te mereces cariño: ¡feliz cumpleaños de mi parte! Si quieres, cuéntame cómo te gustaría pasar el día y lo hacemos especial en lo posible.'],'',"c");
 /* --- Fin ampliación 2 --- */
+
+/* ================= AMPLIACIÓN 3: MATEMÁTICA (teoría) ================= */
+E('tabla-derivadas','tabla de derivadas|derivadas (basicas|notables|principales)|reglas de derivacion',
+ ['Derivadas básicas: (c)′=0; (xⁿ)′=n·xⁿ⁻¹; (eˣ)′=eˣ; (aˣ)′=aˣ·ln a; (ln x)′=1/x; (sen x)′=cos x; (cos x)′=−sen x; (tan x)′=sec² x; (arctan x)′=1/(1+x²); (arcsen x)′=1/√(1−x²). Reglas: suma, producto (fg)′=f′g+fg′, cociente (f/g)′=(f′g−fg′)/g², cadena (f∘g)′=f′(g)·g′. Escríbeme «derivada de …» y la calculo.']);
+E('regla-cadena','regla de la cadena|derivada de una composicion',
+ ['Regla de la cadena: la derivada de f(g(x)) es f′(g(x))·g′(x): derivas «por fuera» y multiplicas por la derivada de lo de «adentro». Ej.: (sen(x²))′ = cos(x²)·2x. Pídeme «derivada de sen(x^2)».']);
+E('aplicaciones-derivada','maximos y minimos|optimizacion|puntos criticos|como encuentro (el )?(maximo|minimo)|concavidad|criterio de la segunda derivada',
+ ['Máximos y mínimos: 1) deriva f, 2) resuelve f′(x)=0 (puntos críticos), 3) clasifica con f″: si f″>0 es mínimo, si f″<0 es máximo. f″>0 en un intervalo = cóncava hacia arriba. En optimización, escribe lo que quieres maximizar en una sola variable y deriva.']);
+E('recta-tangente','recta tangente|ecuacion de la recta tangente|pendiente de la tangente',
+ ['Recta tangente a f en x=a: y − f(a) = f′(a)·(x − a). Calcula f(a), deriva para obtener f′(a) y sustituye.']);
+E('tabla-integrales','tabla de integrales|integrales (basicas|notables|inmediatas)|formulas de integracion',
+ ['Integrales básicas (+C): ∫xⁿdx = xⁿ⁺¹/(n+1) (n≠−1); ∫1/x dx = ln|x|; ∫eˣdx = eˣ; ∫aˣdx = aˣ/ln a; ∫sen x dx = −cos x; ∫cos x dx = sen x; ∫sec²x dx = tan x; ∫1/(1+x²)dx = arctan x; ∫1/√(1−x²)dx = arcsen x. Dime «integral de …» y la resuelvo.']);
+E('metodos-integracion','metodos de integracion|tecnicas de integracion|como (integro|resuelvo una integral)',
+ ['Métodos: 1) directa con tabla, 2) sustitución (cambio de variable u = g(x)), 3) por partes (∫u dv = uv − ∫v du, regla LIATE para elegir u), 4) fracciones parciales para racionales, 5) trigonométrica (sen²,cos² con identidades) y 6) completar cuadrados. Pregúntame «integral de x*e^x» para ver un ejemplo.']);
+E('sustitucion-int','integracion por sustitucion|cambio de variable|metodo de sustitucion|como (hago|uso) (la )?sustitucion',
+ ['Sustitución: elige u = parte «interna» cuya derivada aparezca multiplicando (du = u′dx), reescribe todo en u, integra y regresa a x. Ej.: ∫2x·cos(x²)dx con u=x² → ∫cos u du = sen(x²) + C.']);
+E('partes-int','como (se )?(integra|integro|hago) (una integral )?por partes|integracion por partes|integral por partes|formula de integracion por partes|regla liate|liate',
+ ['Por partes: ∫u dv = u·v − ∫v du. Elige u según LIATE (Logarítmica, Inversa trig., Algebraica, Trigonométrica, Exponencial) y dv lo demás. Ej.: ∫x·eˣ dx con u=x, dv=eˣdx → x·eˣ − eˣ + C.']);
+E('fracciones-parciales','fracciones parciales|descomposicion en fracciones',
+ ['Fracciones parciales: para integrar P(x)/Q(x) factoriza Q y escribe A/(x−a) + B/(x−b)…, halla A, B con valores o sistema, e integra cada término (logaritmos). Si grado P ≥ grado Q, divide antes.']);
+E('integral-definida','que es (una |la )?integral definida|integrales definidas|teorema fundamental del calculo|regla de barrow|area bajo la curva|como (calculo|hallo) (el )?area (bajo|entre)',
+ ['La integral definida ∫ₐᵇ f(x)dx da el área neta bajo la curva entre a y b. Teorema fundamental: si F′ = f, entonces ∫ₐᵇ f dx = F(b) − F(a). Para el área entre dos curvas: ∫ (f_superior − f_inferior) dx. Escríbeme «integral de x^2 de 0 a 3».']);
+E('integral-impropia','integral impropia|integrales impropias',
+ ['Una integral impropia tiene límites infinitos o integrando que se dispara: se define con un límite, p. ej. ∫₁^∞ 1/x² dx = lim_{b→∞}(1 − 1/b) = 1. Converge si el límite es finito.']);
+E('volumen-revol','volumen de revolucion|solidos de revolucion|metodo de discos|metodo de las capas',
+ ['Sólidos de revolución alrededor del eje x: V = π∫ₐᵇ [f(x)]² dx (discos). Con arandelas: π∫(R² − r²)dx. Por capas (eje y): V = 2π∫ x·f(x) dx.']);
+E('limites-notables','limites notables|limite de sen x entre x|limite de (1 \\+ 1/n)',
+ ['Notables: lim sen x/x = 1 (x→0); lim (1−cos x)/x = 0; lim (1+1/n)ⁿ = e (n→∞); lim (eˣ−1)/x = 1; lim ln(1+x)/x = 1. Pídeme «límite de sen(3x)/x cuando x tiende a 0».']);
+E('lhopital','regla de l.?hopital|lhopital|l hopital|indeterminacion|0/0',
+ ['L’Hôpital: si lim f/g da 0/0 o ∞/∞, entonces lim f/g = lim f′/g′ (si este existe). Otras indeterminaciones (0·∞, ∞−∞, 1^∞…) se transforman primero en cociente.']);
+E('continuidad','que es (la )?continuidad|funcion continua|derivabilidad',
+ ['f es continua en a si lim_{x→a} f(x) = f(a). Derivable en a ⇒ continua en a, pero no al revés (|x| es continua en 0 y no derivable).']);
+E('series','que es una serie|serie geometrica|serie de taylor|serie de maclaurin|series? convergentes?|sucesion',
+ ['Serie geométrica: Σ a·rⁿ converge si |r|<1 y suma a/(1−r). Serie de Taylor de f en a: Σ f⁽ⁿ⁾(a)/n!·(x−a)ⁿ. Maclaurin (a=0): eˣ = 1+x+x²/2!+…; sen x = x − x³/3! + x⁵/5! − …; 1/(1−x) = 1+x+x²+…']);
+E('progresiones','progresion (aritmetica|geometrica)|termino general|suma de una progresion',
+ ['Aritmética: aₙ = a₁ + (n−1)d; suma Sₙ = n(a₁+aₙ)/2. Geométrica: aₙ = a₁·rⁿ⁻¹; suma Sₙ = a₁(rⁿ−1)/(r−1); si |r|<1, suma infinita a₁/(1−r).']);
+E('productos-notables','productos notables|binomio al cuadrado|diferencia de cuadrados|cuadrado de un binomio|cubo de un binomio',
+ ['(a+b)² = a²+2ab+b²; (a−b)² = a²−2ab+b²; (a+b)(a−b) = a²−b²; (a+b)³ = a³+3a²b+3ab²+b³; a³−b³ = (a−b)(a²+ab+b²); a³+b³ = (a+b)(a²−ab+b²).']);
+E('factorizacion','como (se )?factoriza|factorizar (un )?polinomio|factor comun|trinomio cuadrado|metodos de factorizacion',
+ ['Para factorizar: 1) factor común, 2) diferencia de cuadrados, 3) trinomio x²+bx+c → dos números que sumen b y multipliquen c, 4) agrupación, 5) Ruffini/raíces racionales para grados altos. Ej.: x²−5x+6 = (x−2)(x−3). Para resolver ecuaciones: «resuelve x^2-5x+6=0».']);
+E('ruffini','regla de ruffini|division sintetica|teorema del resto|teorema del factor',
+ ['Ruffini divide un polinomio entre (x−a): baja el primer coeficiente, multiplica por a, suma al siguiente y repite; el último número es el resto. Si el resto es 0, (x−a) es factor.']);
+E('desigualdades','como (resuelvo|se resuelve) (una )?(inecuacion|desigualdad)|inecuaciones|valor absoluto',
+ ['Inecuaciones: se resuelven como ecuaciones, pero al multiplicar o dividir por un negativo se invierte el signo. Para cuadráticas halla raíces y estudia el signo por intervalos. Valor absoluto: |x| < a ⇔ −a < x < a; |x| > a ⇔ x < −a o x > a.']);
+E('funciones','que es (una )?funcion|dominio y rango|como (hallo|calculo) (el )?dominio|funcion inversa|funcion (par|impar)|composicion de funciones',
+ ['Una función asigna a cada x del dominio exactamente un y. Dominio: x permitidos (no dividir entre 0, no raíz de negativo, logaritmo de positivo). Rango: valores que toma. Inversa: despeja x y cambia x↔y. Par: f(−x)=f(x); impar: f(−x)=−f(x).']);
+E('exp-log','propiedades de (los )?exponentes y logaritmos|ecuaciones exponenciales|ecuaciones logaritmicas|como resuelvo 2\\^x',
+ ['Exponencial: aˣ = b ⇒ x = log_a b = ln b/ln a. Logaritmo: log(ab)=log a+log b; log(a/b)=log a−log b; log(aⁿ)=n·log a. Ej.: 2ˣ = 32 ⇒ x = 5. Puedes pedirme «resuelve 2^x=32».']);
+E('identidades-trig','identidades trigonometricas|formulas trigonometricas|angulo doble|sen(a ?\\+ ?b)|valores de seno y coseno',
+ ['sen²x+cos²x=1; 1+tan²x=sec²x; sen2x=2senx·cosx; cos2x=cos²x−sen²x; sen(a±b)=sena·cosb±cosa·senb; cos(a±b)=cosa·cosb∓sena·senb. Valores: sen 30°=1/2, sen 45°=√2/2, sen 60°=√3/2, cos 60°=1/2, tan 45°=1.']);
+E('radianes','que es un radian|grados a radianes|como (paso|convierto) (de )?(grados|radianes)|pi radianes',
+ ['π rad = 180°. Grados → radianes: multiplica por π/180. Radianes → grados: multiplica por 180/π. Ej.: 90° = π/2 rad; 60° = π/3 rad.']);
+E('circulo-trig','circulo unitario|circunferencia unitaria|angulos notables',
+ ['En el círculo unitario (radio 1), el punto del ángulo θ es (cos θ, sen θ). Ángulos notables: 0°, 30°, 45°, 60°, 90°… con senos 0, ½, √2/2, √3/2, 1.']);
+E('ley-senos','ley de (los )?senos|ley de (los )?cosenos|resolver (un )?triangulo',
+ ['Ley de senos: a/sen A = b/sen B = c/sen C. Ley de cosenos: c² = a² + b² − 2ab·cos C (generaliza Pitágoras). Sirven para triángulos no rectángulos.']);
+E('geometria-analitica','distancia entre dos puntos|punto medio|ecuacion de la recta|pendiente de una recta|forma punto pendiente|recta que pasa por',
+ ['Distancia entre (x₁,y₁) y (x₂,y₂): √((x₂−x₁)²+(y₂−y₁)²). Punto medio: ((x₁+x₂)/2, (y₁+y₂)/2). Pendiente m=(y₂−y₁)/(x₂−x₁). Recta: y = mx + b o y − y₁ = m(x − x₁). Paralelas: misma m; perpendiculares: m₁·m₂ = −1.']);
+E('conicas','ecuacion de la circunferencia|que es una (elipse|parabola|hiperbola)|conicas',
+ ['Circunferencia: (x−h)²+(y−k)²=r². Elipse: x²/a²+y²/b²=1. Parábola: y=ax²+bx+c (vértice en x=−b/2a). Hipérbola: x²/a²−y²/b²=1. Son las cónicas, cortes de un cono con un plano.']);
+E('vectores','que es un vector|producto (punto|escalar|cruz|vectorial)|modulo de un vector|suma de vectores',
+ ['Un vector tiene magnitud y dirección. Módulo: |v|=√(x²+y²+z²). Producto punto: u·v = Σuᵢvᵢ = |u||v|cos θ (da un número). Producto cruz u×v: vector perpendicular a ambos, de módulo |u||v|sen θ. Ortogonales si u·v=0.']);
+E('matrices-ops','como (multiplico|sumo|invierto) (una )?matriz|matriz inversa|matriz identidad|matriz transpuesta|rango de una matriz|sistemas de ecuaciones lineales',
+ ['Suma: elemento a elemento. Producto A·B: fila de A por columna de B (columnas de A = filas de B); no es conmutativo. Inversa 2×2: (1/det)·[[d,−b],[−c,a]]. Sistemas: Gauss-Jordan o regla de Cramer. Pídeme «x+y=5, x-y=1» o «determinante de [[1,2],[3,4]]».']);
+E('complejos','numeros complejos|que es (la unidad imaginaria|i al cuadrado)|modulo de un complejo|forma polar',
+ ['i es la unidad imaginaria con i²=−1. Un complejo es a+bi; su módulo √(a²+b²). Forma polar r(cos θ + i·sen θ); fórmula de Euler: e^{iθ} = cos θ + i·sen θ. Las raíces de x²+1=0 son ±i.']);
+E('combinatoria','que es la combinatoria|combinaciones y permutaciones|diferencia entre combinacion y permutacion|principio multiplicativo|que es un factorial',
+ ['Permutaciones P(n,r)=n!/(n−r)! cuando importa el orden; combinaciones C(n,r)=n!/(r!(n−r)!) cuando no. n! = n·(n−1)·…·1 (0! = 1). Principio multiplicativo: si hay m formas de hacer algo y n de otra, hay m·n en total. Pídeme «combinaciones de 10 en 3».']);
+E('prob-cond','probabilidad condicional|teorema de bayes|eventos independientes|regla de la suma',
+ ['P(A|B) = P(A∩B)/P(B). Independientes: P(A∩B)=P(A)P(B). Suma: P(A∪B)=P(A)+P(B)−P(A∩B). Bayes: P(A|B) = P(B|A)P(A)/P(B).']);
+E('normal','distribucion normal|campana de gauss|regla 68 95 99|z score|puntaje z|desviacion estandar que es',
+ ['La normal tiene forma de campana. Regla empírica: ~68 % de los datos a ±1σ, ~95 % a ±2σ, ~99,7 % a ±3σ. Puntaje z = (x−μ)/σ indica cuántas desviaciones se aleja de la media.']);
+E('regresion','que es (la )?(regresion|correlacion)|coeficiente de correlacion|minimos cuadrados',
+ ['La regresión lineal ajusta y = a + bx minimizando errores al cuadrado. La correlación r va de −1 a 1: cerca de ±1 hay relación lineal fuerte; 0, ninguna lineal. Correlación no implica causalidad.']);
+E('hipotesis','prueba de hipotesis|que es el p valor|intervalo de confianza|nivel de significancia',
+ ['Prueba de hipótesis: plantea H₀ (sin efecto) y H₁, calcula un estadístico y el p-valor; si p < α (típico 0,05) rechazas H₀. Un intervalo de confianza del 95 % es un rango que, repitiendo el estudio, contendría el parámetro verdadero el 95 % de las veces.']);
+E('ec-dif','ecuaciones? diferenciales?|que es una edo|variables separables',
+ ['Una ecuación diferencial relaciona una función con sus derivadas. Variables separables: dy/dx = f(x)g(y) → ∫dy/g(y) = ∫f(x)dx. Ej.: dy/dx = ky ⇒ y = Ce^{kx} (crecimiento exponencial).']);
+E('laplace-fourier','transformada de laplace|series de fourier|transformada de fourier',
+ ['Laplace convierte ecuaciones diferenciales en algebraicas: L{f} = ∫₀^∞ e^{−st}f(t)dt. Fourier descompone una señal en senos y cosenos de distintas frecuencias. Se usan en circuitos, señales y control.']);
+E('mate-discreta','matematica discreta|grafos|teoria de grafos|que es un grafo|induccion matematica|relacion de recurrencia',
+ ['La matemática discreta estudia estructuras contables: lógica, conjuntos, grafos, combinatoria, recurrencias. Inducción: 1) caso base, 2) si vale para n, vale para n+1. Un grafo tiene vértices y aristas; un árbol es un grafo conexo sin ciclos.']);
+E('modulo','que es (el )?modulo|congruencia|aritmetica modular|resto de dividir|que es mod',
+ ['a mod n es el resto de dividir a entre n. Ej.: 17 mod 5 = 2. a ≡ b (mod n) si n divide a a − b. Se usa en criptografía, hashes y calendarios.']);
+E('algebra-lineal','que es (el )?algebra lineal|valores propios|autovalores|espacio vectorial|que es un eigen',
+ ['El álgebra lineal estudia vectores, matrices y transformaciones lineales. Un autovalor λ y autovector v cumplen A·v = λ·v. Es base de gráficos, IA (PCA, redes neuronales) y sistemas lineales.']);
+E('calc-multi','derivadas parciales|gradiente|integral doble|integrales multiples|multiplicadores de lagrange',
+ ['Derivada parcial: derivas respecto a una variable tratando las demás como constantes. Gradiente ∇f=(∂f/∂x, ∂f/∂y): apunta a la mayor subida. Integral doble ∬f dA suma sobre una región; se resuelve iterando ∫(∫f dy)dx. Lagrange optimiza con restricciones.']);
+E('como-usar-mate','que sabes de (matematica|mates|calculo)|que (puedes|sabes) (calcular|resolver) (de )?(matematica|mates)|que operaciones (matematicas )?haces|ayuda con matematica|ayudame con matematicas',
+ ['Puedo resolver: operaciones con raíces, potencias, factorial, logaritmos y trigonometría; derivadas («derivada de x^2*sen(x)»), integrales indefinidas y definidas («integral de x*e^x», «integral de x^2 de 0 a 3»), límites («límite de sen(x)/x cuando x tiende a 0»), ecuaciones y sistemas («resuelve x^2-5x+6=0», «x+y=5, x-y=1»), MCD/MCM, primos, factorización, estadística de listas, geometría básica y conversión de bases.'],'',"c");
+/* --- Fin ampliación 3 --- */
 
 /* export */
 window.COMPI_KB=KB;
