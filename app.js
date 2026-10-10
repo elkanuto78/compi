@@ -165,7 +165,7 @@ async function askAI(text){
   const msgs=chat.slice(-12).map(m=>({role:m.who==='me'?'user':'assistant',content:m.text}));
   while(msgs.length&&msgs[0].role!=='user')msgs.shift();
   const A=analyze(text);
-  const body={messages:msgs,profile:{name:prof.name,music:prof.music,food:prof.food,act:prof.act},mood:A.top?A.top.k:''};
+  const body={messages:msgs,profile:{name:prof.name,music:prof.music,food:prof.food,act:prof.act,facts:window.CEREBRO?CEREBRO.factsText():''},mood:A.top?A.top.k:''};
   const res=await Promise.race([sb.functions.invoke('compi-chat',{body}),new Promise((_,rj)=>setTimeout(()=>rj(new Error('timeout')),20000))]);
   if(res.error||!res.data||typeof res.data.text!=='string'||!res.data.text.trim())throw(res.error||new Error('empty'));
   return cleanAI(res.data.text);
@@ -541,7 +541,7 @@ function talk(text){
       const lm=moods.reduce((a,b)=>!a||new Date(b.t)>new Date(a.t)?b:a,null),low=(A.top&&A.top.v<0)||(lm&&Date.now()-new Date(lm.t)<3*36e5&&lm.v<0);
       body.push(low?`Algo suave para ahora, ${n}: respira lento un par de minutos (en la pestaña Ánimo hay un ejercicio), toma agua y sal a caminar unos 10 minutos${f('music')?`, con algo de ${f('music')} de fondo`:''}. Y si te pesa mucho, contárselo a alguien de confianza ayuda. ¿Cuál te late más?`:`Podrías ${f('act')?'dedicarte un rato a '+f('act'):'salir a caminar un rato'}${f('music')?`, con ${f('music')} de fondo`:''}. ¿Te dejo un recordatorio para hacerlo?`);
     }
-    else if(/\?|^(cual|cuales|que|como|cuanto|cuando|donde|quien|por que|porque|puedes|me puedes|sabes|dime|responde)\b/.test(t))body.push(pick([`Esa pregunta se me escapa por ahora, ${n}: mi parte de IA no está respondiendo. Puedo escucharte, guardar recordatorios o ayudarte a calmarte. ¿Cómo te sientes?`,`Ahora mismo no puedo responder eso bien, ${n}. Sí puedo acompañarte, anotar recordatorios o proponerte un ejercicio para calmarte. ¿Qué prefieres?`]));
+    else if(/\?|^(cual|cuales|que|como|cuanto|cuando|donde|quien|por que|porque|puedes|me puedes|sabes|dime|responde)\b/.test(t))body.push(pick([`Ese tema aún no lo tengo, ${n}. Puedes enseñármelo: «cuando te diga X, responde Y». Puedo escucharte, guardar recordatorios o ayudarte a calmarte. ¿Cómo te sientes?`,`Eso todavía no lo sé, ${n}. Puedo enseñarme: «cuando te diga X, responde Y». Mientras tanto te acompaño, anoto recordatorios o te propongo un ejercicio para calmarte. ¿Qué prefieres?`]));
     else if(A.kw.length)body.push(pick([`Te escucho, ${n}. ¿Qué es lo que más te ronda la cabeza ahora?`,`Cuéntame con calma, ${n}. ¿Cómo te hizo sentir eso?`,`Gracias por contármelo. ¿Qué fue lo más difícil de eso para ti?`,`Aquí estoy. ¿Quieres seguir contándome o prefieres que te proponga algo para despejarte?`]));
     else body.push(pick(['Te escucho. ¿Quieres que te anote algo en la agenda?','Cuéntame más, estoy atento.']));
   }else if(GREET)body[0]=`¡Hola, ${n}! `+body[0];
@@ -561,7 +561,9 @@ function bank(t){
   return null;
 }
 function localTalk(text,t){
-  const L=talk(text),b=bank(t);if(!b)return L;
+  const L=talk(text);let b=bank(t);
+  if(!b&&window.CEREBRO){const k=CEREBRO.ask(text,t,{name:first(prof&&prof.name,''),prof});if(k)b=k.text}
+  if(!b)return L;
   offer=null;const keep=L.match(/^(Anoté|Listo, quité).*$/gm)||[];
   return keep.length?b+'\n\n'+keep.join('\n'):b;
 }
@@ -592,6 +594,7 @@ function reply(text){
   const w=parseWhen(t);
   if(w&&WEAK.test(t))return remind(text,t);
   if(w&&OBLIG.test(t)){const r=remind(text,t,true);return r+tasteNote(analyze(text))}
+  if(window.CEREBRO){const tl=CEREBRO.tool(text,t,{name:first(prof&&prof.name,''),prof});if(tl){offer=null;if(tl.name){prof.name=tl.name;save()}return tl.text}}
   const as=assist(text,t);if(as)return as;
   return CLOUD?{ai:true,local:localTalk(text,t)}:localTalk(text,t);
 }
@@ -789,6 +792,7 @@ function showNote(title,body,tag){
   }catch(x){}
 }
 const b64u=s=>{const p='='.repeat((4-s.length%4)%4),b=(s+p).replace(/-/g,'+').replace(/_/g,'/'),r=atob(b);return Uint8Array.from(r,c=>c.charCodeAt(0))};
+let pushOn=false;
 async function subscribePush(){
   const k=CFG.VAPID_PUBLIC_KEY;
   if(!CLOUD||!cur||!k||k.length<60||!('serviceWorker' in navigator)||!('PushManager' in window)||typeof Notification==='undefined'||Notification.permission!=='granted')return;
@@ -797,7 +801,8 @@ async function subscribePush(){
     let sub=await reg.pushManager.getSubscription();
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(k)});
     const j=sub.toJSON();
-    await sb.from('push_subs').upsert({endpoint:j.endpoint,user_id:cur,p256dh:j.keys.p256dh,auth:j.keys.auth},{onConflict:'endpoint'});
+    const r=await sb.from('push_subs').upsert({endpoint:j.endpoint,user_id:cur,p256dh:j.keys.p256dh,auth:j.keys.auth},{onConflict:'endpoint'});
+    pushOn=!r.error;
   }catch(e){}
 }
 async function unsubPush(){
@@ -805,6 +810,7 @@ async function unsubPush(){
     if(!CLOUD||!('serviceWorker' in navigator))return;
     const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();
     if(sub){await sb.from('push_subs').delete().eq('endpoint',sub.endpoint);await sub.unsubscribe()}
+    pushOn=false;
   }catch(e){}
 }
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
@@ -841,6 +847,7 @@ function check(){
   const now=Date.now();let changed=false;
   events.forEach(e=>{
     if(!e.done&&!e.notified&&new Date(e.at).getTime()<=now){
+      if(document.hidden&&pushOn&&now-new Date(e.at).getTime()<120000)return;
       e.notified=true;changed=true;
       const msg=`Recordatorio: ${e.title}`;
       toast(msg);beep();
