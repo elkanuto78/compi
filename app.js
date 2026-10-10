@@ -23,7 +23,7 @@ async function loadCloud(){
   ]);
   if(p.error||e.error||m.error)throw(p.error||e.error||m.error);
   prof=p.data?{name:p.data.name,music:p.data.music||'',food:p.data.food||'',act:p.data.act||''}:null;
-  events=(e.data||[]).map(r=>({id:r.id,title:r.title,at:r.at,done:r.done,notified:r.notified,repeat:r.repeat_rule||''}));
+  events=(e.data||[]).map(r=>({id:r.id,title:r.title,at:r.at,done:r.done,notified:r.notified,fu:!!r.fu_sent,repeat:r.repeat_rule||''}));
   moods=(m.data||[]).reverse().map(r=>({id:r.id,t:new Date(r.t).getTime(),k:r.k,v:r.v,s:r.src}));
   chat=store.get(K('chat'),[]);
   snap={ev:{},mo:new Set(moods.map(x=>x.id)),prof:JSON.stringify(prof)};
@@ -578,6 +578,8 @@ function reply(text){
   if(CRISIS.test(t)){offer=null;pending=null;return{crisis:true,text:crisisMsg(prof.name)}}
   if(ABUSE.test(t)){offer=null;pending=null;return{crisis:true,text:abuseMsg(prof.name),links:[['Llamar a la Línea 100','tel:100'],['Emergencias 105','tel:105']]}}
   const ta=teach(text);if(ta)return ta;
+  if(!fuWait){try{fuWait=store.get(K('fuw'),null)}catch(e){}}
+  if(fuWait){const f=fuWait;fuWait=null;store.set(K('fuw'),null);if(Date.now()-f.t<3*36e5){const fr=fuReply(f,text,t);if(fr)return fr}}
   if(offer){
     const o=offer;offer=null;
     if(/^(si|sii|dale|ok|okay|claro|por favor|porfa|vale|bueno|de acuerdo|listo|hazlo)\b/.test(t)){
@@ -853,12 +855,71 @@ function check(){
       toast(msg);beep();
       chat.push({who:'bot',text:`Oye, ${prof.name}. ${msg}.`});
       showNote('Compi',e.title,e.id);
+      if(e.repeat&&!FU_SKIP.test(norm(e.title))){const q=store.get(K('fuq'),[]);q.push({title:e.title,due:now+FU_MIN*60000});store.set(K('fuq'),q.slice(-20))}
       if(e.repeat){const st=e.repeat==='daily'?86400000:604800000;let at=new Date(e.at).getTime();while(at<=now)at+=st;e.at=new Date(at).toISOString();e.notified=false}
     }
   });
+  try{fuScan()}catch(x){console.warn('fu',x)}
   if(changed){save();renderChat();renderAgenda()}
 }
 setInterval(check,15000);
+
+/* ---------- Seguimiento: ¿cómo te fue? ---------- */
+const FU_MIN=20;
+const FU_SKIP=/\b(agua|pastilla|pastillas|medicina|medicamento|vitamina|vitaminas|despertar|alarma|levantarme)\b/;
+let fuWait=null;
+const fuKind=t=>/estudi|tarea|examen|exposic|proyecto|trabajo|clase|practica|informe|tesis|leer|repasar/.test(t)?'study':/gym|gimnasio|ejercicio|correr|entren|caminar|futbol|basket|voley|nadar|yoga|bici|deporte|baile|bailar/.test(t)?'sport':/cita|reunion|entrevista|doctor|medico|dentista|llamar|llamada|tramite|banco|visita/.test(t)?'meet':/almuerz|cenar|comer|desayun|cocin|cena/.test(t)?'food':/dormir|siesta|descans|meditar|respirar|relaj/.test(t)?'rest':'gen';
+function markFu(e){try{if(CLOUD&&sb&&e.id)sb.from('events').update({fu_sent:true}).eq('id',e.id).then(()=>{},()=>{})}catch(x){}}
+function fuAsk(title,quiet){
+  const n=first(prof.name,'');
+  const msg=pick([`Hola, ${n}. Ya pasaron ${FU_MIN} minutos desde «${title}». ¿Cómo te fue?`,`${n}, ¿cómo te fue con «${title}»? Cuéntame.`,`Pasó un ratito desde «${title}». ¿Cómo salió, ${n}?`]);
+  chat.push({who:'bot',text:msg});
+  fuWait={title,k:fuKind(norm(title)),t:Date.now()};store.set(K('fuw'),fuWait);
+  save();renderChat();
+  if(!quiet){toast(`¿Cómo te fue con «${title}»?`);beep();showNote('Compi',`¿Cómo te fue con «${title}»?`,'fu-'+title)}
+}
+function fuScan(){
+  if(!prof)return;
+  const now=Date.now();let L=store.get(K('fu'),{}),ch=false;
+  events.forEach(e=>{
+    if(!e.notified||e.repeat)return;
+    const k=e.id+'|'+e.at;if(L[k])return;
+    const age=now-new Date(e.at).getTime();
+    if(age>6*36e5||FU_SKIP.test(norm(e.title))){L[k]=1;ch=true;return}
+    if(e.fu){L[k]=1;ch=true;fuAsk(e.title,true);return}
+    if(age>=FU_MIN*60000){
+      if(document.hidden&&pushOn&&age<(FU_MIN+3)*60000)return;
+      L[k]=1;ch=true;fuAsk(e.title,false);markFu(e);
+    }
+  });
+  const q=store.get(K('fuq'),[]);
+  if(q.length){
+    const rest=[];
+    q.forEach(x=>{if(x.due<=now){if(now-x.due<6*36e5){fuAsk(x.title,false)}}else rest.push(x)});
+    if(rest.length!==q.length)store.set(K('fuq'),rest);
+  }
+  if(ch){const ks=Object.keys(L);if(ks.length>300)L=Object.fromEntries(ks.slice(-200).map(x=>[x,1]));store.set(K('fu'),L)}
+}
+const FU_R={
+  study:{p:['¡Qué bien! Ese esfuerzo se nota. Date un descanso corto antes de seguir.','Me alegra. Estudiar con constancia suma más que hacerlo de golpe.'],n:['Los días así pasan, y no define cómo te va. Si quieres, retomamos con un bloque corto de 25 minutos.','Gracias por contármelo. A veces ayuda cambiar de tema o descansar un poco antes de volver.'],z:['Entiendo. Si te quedó algo pendiente, dime y lo agendo.','Vale. Un descanso corto antes de lo siguiente ayuda a asentar lo aprendido.']},
+  sport:{p:['¡Excelente! Tu cuerpo y tu ánimo lo agradecen. Toma agua y estira un poco.','Genial, eso es constancia. Hidrátate y descansa.'],n:['No todos los días salen con ganas, y está bien. Lo importante es que lo intentaste. Hidrátate y descansa.','Lo importante es volver a intentarlo mañana, sin presión.'],z:['Algo es algo, ¡sigue así! Toma agua.','Bien, lo que cuenta es la constancia.']},
+  meet:{p:['¡Qué bueno que salió bien! Respira, ya pasó lo difícil.','Me alegra mucho. Buen trabajo.'],n:['Lamento que no haya salido como esperabas. Respira: se puede reajustar y volver a intentar.','Gracias por contármelo. Puede dejar sensación pesada, pero casi siempre tiene arreglo.'],z:['Entiendo. Si hay algo que dar seguimiento, dime y lo agendo.','Vale. ¿Quedó algo pendiente?']},
+  food:{p:['¡Provecho! Qué bueno que disfrutaste.','Me alegra. Comer con calma también es cuidarte.'],n:['Qué pena. La próxima prueba algo que te guste más.','Gracias por avisar; cuida cómo te sientes y toma agua.'],z:['Ya veo. Cuida que no se te pase la próxima comida.','Vale, ¡a seguir con el día!']},
+  rest:{p:['Qué bien que descansaste. Eso también es avanzar.','Me alegra, el descanso es parte del progreso.'],n:['Si no lograste descansar, prueba respirar lento un par de minutos; en Calmar tienes un ejercicio guiado.','A veces cuesta soltar la cabeza. Un poco de respiración lenta puede ayudar.'],z:['Algo es algo. Cuando quieras, seguimos.','Bien, vuelve con calma a lo siguiente.']},
+  gen:{p:['¡Qué bueno! Me alegra que haya salido bien.','Genial, ¡buen trabajo!'],n:['Lamento que no haya salido bien. Si quieres, cuéntame qué pasó.','Gracias por contármelo. Va a pasar; ve paso a paso.'],z:['Entiendo. Si quedó algo pendiente, dímelo y lo agendo.','Vale. ¿Quieres que anote algo más?']}
+};
+function fuReply(f,text,t){
+  if(/^(recuerdame|avisame|anota|agenda|cancela|borra|elimina|que tengo|que hora)\b/.test(t)||STRONG.test(t))return null;
+  const n=first(prof.name,'');
+  const NEU=/\b(mas o menos|regular|asi asi|normal|ni bien ni mal|maso)\b/,NEGW=/(no (me fue|estuvo|salio|fue|termine|pude|logre)|nada bien|\b(mal|horrible|pesimo|fatal|dificil|estresante|complicado|fracase|jale|pesado|agotador|cansado|cansada|nervioso|nerviosa)\b)/,POS=/\b(bien|muy bien|genial|excelente|perfecto|super|buenisimo|lo logre|termine|aprobe|chevere|todo ok|contento|contenta|feliz|tranquilo|tranquila|facil|divertido|lindo|rico|increible)\b/;
+  const A=analyze(text);let v=0;
+  if(NEU.test(t))v=0;else if(NEGW.test(t))v=-1;else if(POS.test(t))v=1;else if(A.top)v=A.top.v>0?1:A.top.v<0?-1:0;
+  else if(t.split(/\s+/).length>12||/\?/.test(t))return null;
+  const R=FU_R[f.k]||FU_R.gen;let out=pick(v>0?R.p:v<0?R.n:R.z);
+  if(v>0)logMood(A.top&&A.top.v>0?A.top:{k:'alegria',v:EMO.alegria.v,i:1});
+  if(v<0){logMood(A.top&&A.top.v<0?A.top:{k:'estres',v:EMO.estres.v,i:1});offer={title:'Descansar un rato',mins:30};out+='\n¿Te dejo un recordatorio para descansar un rato?'}
+  return out.replace(/^/,n&&v!==0&&Math.random()<.4?n+', ':'').replace(/^(\S+, )(¡?[A-ZÁÉÍÓÚ])/,(m,a,b)=>a+b.toLowerCase());
+}
 
 /* ---------- Inicio ---------- */
 /* ---------- Ánimo ---------- */
