@@ -237,13 +237,32 @@ grasp:{t:'Resolve',k:'GraspOfTheUndying',a:['Demolish','Conditioning','Overgrowt
 aftershock:{t:'Resolve',k:'Aftershock',a:['FontOfLife','BonePlating','Unflinching'],t2:'Inspiration',b:['MagicalFootwear','BiscuitDelivery'],sh:SH_TK},
 guardian:{t:'Resolve',k:'Guardian',a:['FontOfLife','Conditioning','Revitalize'],t2:'Sorcery',b:['Transcendence','Waterwalking'],sh:SH_TK}
 };
-const RP={
-adm:['lt','hail','lt','pta','fleet'],apm:['comet','elecAP','comet','aeryR','aery'],ada:['elec','lt','hail','conq','conq'],apa:['dh','phase','dh','aeryR','aeryR'],
-adf:['conq','conq','conq','grasp','fleet'],apf:['phase','comet','comet','grasp','phase'],tkp:['grasp','grasp','aftershock','conq','guardian'],
-sup:['aery','guardian','comet','aftershock','aery'],supad:['guardian','guardian','elec','aftershock','guardian']
-};
 const SUPAD={n:'Soporte (daño físico)',B:PROFILES.sup.B.map(([a,b,W])=>{const w={...W};if('ap' in w){w.ad=w.ap;w.ap=-1}return[a,b,w]})};
 PROFILES.supad=SUPAD;
+const ANTIH=/Mortal Reminder|Chempunk|Morellonomicon|Thornmail|Oblivion Orb|Serpent's Fang|Executioner|Bramble|Rylai|Cryptbloom/i;
+const AHW=(W)=>({...W,hp:(W.hp||0)+.1});
+const ORD={
+adm:{o:[0,1,3,2,'AH0'],rp:['lt','hail','pta','lt','fleet']},
+apm:{o:[0,1,2,3,'AH1'],rp:['elecAP','comet','comet','aeryR','aery']},
+ada:{o:[0,1,2,3,'AH0'],rp:['elec','lt','hail','conq','elec']},
+apa:{o:[0,1,2,3,'AH0'],rp:['dh','phase','elecAP','aeryR','dh']},
+adf:{o:[0,1,2,3,'AH0'],rp:['conq','hail','conq','grasp','fleet']},
+apf:{o:[0,1,2,3,'AH0'],rp:['phase','elecAP','comet','grasp','phase']},
+tkp:{o:[0,1,2,3,4],rp:['grasp','grasp','aftershock','conq','guardian']},
+sup:{o:[0,1,2,3,4],rp:['aery','guardian','comet','aftershock','glacial']},
+supad:{o:[0,1,2,3,4],rp:['guardian','guardian','elec','aftershock','glacial']}
+};
+for(const k in ORD){
+  const P=PROFILES[k],O=ORD[k],old=P.B;
+  P.B=O.o.map((x,i)=>{
+    if(typeof x==='string'){const b=old[+x[2]];return['Anti-curación','Contra equipos con mucha curación o regeneración: incluye objetos que aplican heridas graves.',AHW(b[2]),O.rp[i],{bonus:ANTIH}]}
+    const b=old[x];return[b[0],b[1],b[2],O.rp[i]]
+  });
+}
+const ORD2=(()=>{const o={};for(const k in ORD)o[k]=ORD[k].rp;return o})();
+const RALT={adm:['lt','pta','fleet','hail','elec','conq'],apm:['comet','elecAP','phase','aery','dh','glacial'],ada:['elec','hail','lt','conq','fleet'],apa:['dh','elecAP','phase','comet','aeryR'],adf:['conq','grasp','fleet','hail','aftershock'],apf:['phase','comet','elecAP','grasp','aery'],tkp:['grasp','aftershock','guardian','conq','aery','glacial'],sup:['aery','guardian','comet','aftershock','glacial','elecAP'],supad:['guardian','elec','aftershock','glacial','hail','aery']};
+const RT={lt:{as:.25,crit:.1},pta:{crit:.15,as:.1,ad:.1,leth:.1},fleet:{ls:.2,as:.15,hp:.1},conq:{hp:.15,ls:.1,ad:.1},hail:{leth:.3,haste:.2},elec:{leth:.25,haste:.15},elecAP:{mpen:.25,haste:.1,ap:.1},dh:{ap:.15,mpen:.2,mpenp:.1},comet:{haste:.25,mana:.25,mreg:.1},phase:{msp:.25,ms:.1,haste:.15,hp:.1},aery:{heal:.35,haste:.25,mana:.2},aeryR:{heal:.2,haste:.2,hp:.15},glacial:{haste:.35,msp:.15,mana:.1},grasp:{hp:.3,armor:.15,mr:.1},aftershock:{armor:.25,mr:.2,hp:.2},guardian:{heal:.3,hp:.15,armor:.1,mr:.1}};
+const RP={};for(const k in PROFILES)RP[k]=PROFILES[k].B.map(x=>x[3]);
 const DEFS=it=>{const s=it.s,a=(s.armor||0)*GOLD.armor+(s.mr||0)*GOLD.mr+(s.hp||0)*GOLD.hp,o=['ad','ap','as','crit','haste','leth','arpen','mpen','mpenp','mana'].reduce((x,k)=>x+(s[k]||0)*(GOLD[k]||0),0);return a/((a+o)||1)};
 function orderItems(list,k,rl){
   const tank=k==='tkp';
@@ -279,18 +298,21 @@ function tweak(W,rl){
   else if(rl==='J'){w.haste=(w.haste||0)+.2;w.hp=(w.hp||0)+.12}
   return w;
 }
-function builds(c,D,rl){
+function builds(c,D,rl,ov){
   rl=rl||defRoles(c)[0];
   const items=D.items.filter(i=>!i.b),boots=D.items.filter(i=>i.b);
   const k=profKey(c,rl),P=PROFILES[k];
-  const list=P.B.map((x,i)=>[x[0],x[1],x[2],RP[k][i]]);
+  const list=P.B.map((x,i)=>[x[0],x[1],x[2],x[3],x[4]]);
   if(Math.abs(c.att-c.mag)<=2&&c.att>=6&&c.mag>=6&&(k==='adm'||k==='ada'||k==='adf'||k==='apm'||k==='apa'||k==='apf')){list[4]=[HYB[0],HYB[1],HYB[2],'conq']}
   const ENCH=/Moonstone|Flowing Water|Ardent|Redemption|Mikael|Shurelya|Imperial Mandate|Locket|Knight's Vow|Echoes of Helia|Dawncore/i;
-  const res=list.map(([name,para,W0,rp],bi)=>{
+  const res=list.map(([name,para0,W0,rp0,xo],bi)=>{
+    const alt=ov&&ov[bi]&&PAGES[ov[bi]]?ov[bi]:null,rp=alt||rp0;
     const W=tweak(W0,rl);
-    const r=pickBuild(items,boots,W,{sup:rl==='S',bonus:(k==='sup')&&bi<2?ENCH:null});
+    if(RT[rp])for(const kk in RT[rp])if(!(W[kk]<0))W[kk]=(W[kk]||0)+RT[rp][kk];
+    const para=alt?para0+' Ajustada a la runa elegida.':para0;
+    const r=pickBuild(items,boots,W,{sup:rl==='S',bonus:(xo&&xo.bonus)||((k==='sup')&&bi<2?ENCH:null)});
     const top=Object.entries(W).filter(([a,b])=>b>0&&LAB[a]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([a])=>LAB[a]);
-    return{name,para,items:orderItems(r.items,k,rl),boots:r.boots,tot:r.tot,focus:top,rp,start:startItem(k,rl),bootAt:(rl==='S'||k==='tkp')?0:1};
+    return{name,para,alt:!!alt,items:orderItems(r.items,k,rl),boots:r.boots,tot:r.tot,focus:top,rp,opts:RALT[k]||[],start:startItem(k,rl),bootAt:(rl==='S'||k==='tkp')?0:1};
   });
   return{cls:P.n,builds:res,rl};
 }
@@ -346,7 +368,9 @@ function draw(w,m,api,D){
   }
   const usual=defRoles(ch);
   const rl=c.rl&&RL[c.rl]?c.rl:usual[0];
-  const B=builds(ch,D,rl);
+  if(!c.rk)c.rk={};
+  const ovr={};for(let i=0;i<5;i++){const v=c.rk[rl+i+ch.id];if(v)ovr[i]=v}
+  const B=builds(ch,D,rl,ovr);
   const top=el('div','lol-top');
   top.appendChild(icon(D,'champion',ch.id,'lol-cbig'));
   const tt=el('div');tt.appendChild(el('div','qz-q',ch.name));tt.appendChild(el('div','lol-meta',`${ch.title} · ${ch.tags.join(' / ')} · perfil: ${B.cls}`));top.appendChild(tt);
@@ -355,10 +379,10 @@ function draw(w,m,api,D){
   Object.keys(RL).forEach(k=>{const b0=el('button','chip'+(k===rl?' on':''),RL[k]+(usual.includes(k)?' ★':''));b0.type='button';b0.title=usual.includes(k)?'Rol habitual de este campeón':'Rol poco habitual';b0.onclick=()=>{c.rl=k;c.bi=0;api.update()};rls.appendChild(b0)});
   w.appendChild(rls);
   const tabs=el('div','qz-menu lol-tabs');
-  B.builds.forEach((b,i)=>{const t=el('button','chip'+(i===c.bi?' on':''),`${i+1}`);t.type='button';t.title=b.name;t.textContent='Build '+(i+1);t.onclick=()=>{c.bi=i;api.update()};tabs.appendChild(t)});
+  B.builds.forEach((b,i)=>{const t=el('button','chip'+(i===c.bi?' on':''),`${i+1}`);t.type='button';t.title=b.name;t.textContent=i<3?'Top '+(i+1):'Alt '+(i-2);t.onclick=()=>{c.bi=i;api.update()};tabs.appendChild(t)});
   w.appendChild(tabs);
   const b=B.builds[c.bi]||B.builds[0];
-  const bh=el('div','lol-bh');bh.appendChild(el('div','lol-bt',`Build ${c.bi+1} · ${b.name}`));bh.appendChild(el('div','lol-bp',b.para));w.appendChild(bh);
+  const bh=el('div','lol-bh');const bt=el('div','lol-bt');bt.appendChild(el('span','lol-tier'+(c.bi<3?'':' alt'),c.bi<3?'TOP':'ALTERNATIVA'));bt.appendChild(document.createTextNode(' '+b.name));bh.appendChild(bt);bh.appendChild(el('div','lol-bp',b.para));w.appendChild(bh);
   w.appendChild(el('div','lol-sec','Orden de compra'));
   const row=el('div','lol-items');
   const seq=[];seq.push({it:b.start,n:'🛒',kind:'start'});
@@ -377,6 +401,10 @@ function draw(w,m,api,D){
       const main=pg&&rr(pg.k);
       if(!main){rb.appendChild(el('div','lol-meta','Runas no disponibles ahora mismo (sin datos de Riot).'));return}
       rb.appendChild(el('div','lol-sec','Runas'));
+      const ks=el('div','lol-keys');ks.appendChild(el('span','lol-shl','Runa clave'));
+      const bk=B.builds[c.bi]||B.builds[0],def=PAGES[(ORD2[profKey(ch,rl)]||[])[c.bi]]?(ORD2[profKey(ch,rl)])[c.bi]:null;
+      (bk.opts||[]).forEach(key=>{const p=PAGES[key],r0=p&&rr(p.k);if(!r0)return;const on=key===bk.rp;const kb=el('button','lol-key'+(on?' on':''));kb.type='button';kb.title=r0.n+(key===def?' (recomendada)':'');const im=el('img');im.alt=r0.n;im.src=`${DD}/cdn/img/${r0.i}`;im.onerror=()=>{im.style.visibility='hidden'};kb.appendChild(im);if(key===def)kb.appendChild(el('i',null,'★'));kb.onclick=()=>{c.rk[rl+c.bi+ch.id]=key;api.update()};ks.appendChild(kb)});
+      rb.appendChild(ks);
       const cols=el('div','lol-rcols');
       const tn=k=>{const t=D.runes.find(x=>x.k===k);return t?t.n:k};
       const mk=(r,big)=>{const d=el('div','lol-rn'+(big?' big':''));const im=el('img',big?'lol-rbig':'lol-ric');im.alt='';im.loading='lazy';im.src=`${DD}/cdn/img/${r.i}`;im.onerror=()=>{im.style.visibility='hidden'};d.appendChild(im);d.appendChild(el('span',null,r.n));d.title=r.d||r.n;return d};
