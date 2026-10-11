@@ -401,13 +401,13 @@ function draw(w,m,api,D){
       const main=pg&&rr(pg.k);
       if(!main){rb.appendChild(el('div','lol-meta','Runas no disponibles ahora mismo (sin datos de Riot).'));return}
       rb.appendChild(el('div','lol-sec','Runas'));
-      const ks=el('div','lol-keys');ks.appendChild(el('span','lol-shl','Runa clave'));
+      const ks=el('div','lol-keys');ks.style.cssText='display:flex;flex-wrap:wrap;gap:8px;align-items:center';ks.appendChild(el('span','lol-shl','Runa clave'));
       const bk=B.builds[c.bi]||B.builds[0],def=PAGES[(ORD2[profKey(ch,rl)]||[])[c.bi]]?(ORD2[profKey(ch,rl)])[c.bi]:null;
-      (bk.opts||[]).forEach(key=>{const p=PAGES[key],r0=p&&rr(p.k);if(!r0)return;const on=key===bk.rp;const kb=el('button','lol-key'+(on?' on':''));kb.type='button';kb.title=r0.n+(key===def?' (recomendada)':'');const im=el('img');im.alt=r0.n;im.src=`${DD}/cdn/img/${r0.i}`;im.onerror=()=>{im.style.visibility='hidden'};kb.appendChild(im);if(key===def)kb.appendChild(el('i',null,'★'));kb.onclick=()=>{c.rk[rl+c.bi+ch.id]=key;api.update()};ks.appendChild(kb)});
+      (bk.opts||[]).forEach(key=>{const p=PAGES[key],r0=p&&rr(p.k);if(!r0)return;const on=key===bk.rp;const kb=el('button','lol-key'+(on?' on':''));kb.type='button';kb.style.cssText='width:46px;height:46px;flex:none;border-radius:50%;padding:3px;overflow:visible';kb.title=r0.n+(key===def?' (recomendada)':'');const im=el('img');im.alt=r0.n;im.width=34;im.height=34;im.style.cssText='width:34px;height:34px;display:block;object-fit:contain';im.src=`${DD}/cdn/img/${r0.i}`;im.onerror=()=>{im.style.visibility='hidden'};kb.appendChild(im);if(key===def)kb.appendChild(el('i',null,'★'));kb.onclick=()=>{c.rk[rl+c.bi+ch.id]=key;api.update()};ks.appendChild(kb)});
       rb.appendChild(ks);
       const cols=el('div','lol-rcols');
       const tn=k=>{const t=D.runes.find(x=>x.k===k);return t?t.n:k};
-      const mk=(r,big)=>{const d=el('div','lol-rn'+(big?' big':''));const im=el('img',big?'lol-rbig':'lol-ric');im.alt='';im.loading='lazy';im.src=`${DD}/cdn/img/${r.i}`;im.onerror=()=>{im.style.visibility='hidden'};d.appendChild(im);d.appendChild(el('span',null,r.n));d.title=r.d||r.n;return d};
+      const mk=(r,big)=>{const d=el('div','lol-rn'+(big?' big':''));const im=el('img',big?'lol-rbig':'lol-ric');im.alt='';im.style.cssText=big?'width:44px;height:44px;flex:none':'width:28px;height:28px;flex:none';im.loading='lazy';im.src=`${DD}/cdn/img/${r.i}`;im.onerror=()=>{im.style.visibility='hidden'};d.appendChild(im);d.appendChild(el('span',null,r.n));d.title=r.d||r.n;return d};
       const c1=el('div','lol-rcol');c1.dataset.tree=pg.t;c1.appendChild(el('div','lol-rt',tn(pg.t)));c1.appendChild(mk(main,true));pg.a.forEach(k=>{const r=rr(k);if(r)c1.appendChild(mk(r))});
       const c2=el('div','lol-rcol');c2.dataset.tree=pg.t2;c2.appendChild(el('div','lol-rt',tn(pg.t2)));pg.b.forEach(k=>{const r=rr(k);if(r)c2.appendChild(mk(r))});
       cols.appendChild(c1);cols.appendChild(c2);rb.appendChild(cols);
