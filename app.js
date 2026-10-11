@@ -148,10 +148,24 @@ $('#edit').onclick=showOnb;
 
 /* ---------- Chat ---------- */
 function say(who,text,x){chat.push(Object.assign({who,text},x||{}));save();if(!$('#main').hidden)renderChat()}
+function fillText(d,t){
+  t=String(t==null?'':t);
+  if(t.indexOf('```')<0){d.appendChild(document.createTextNode(t));return}
+  const re=/```([\w#+-]*)\n?([\s\S]*?)```/g;let i=0,m;
+  const txt=s=>{s=s.replace(/^\n+|\n+$/g,'');if(s)d.appendChild(document.createTextNode(s))};
+  while((m=re.exec(t))){
+    txt(t.slice(i,m.index));
+    const code=m[2].replace(/\n$/,''),w=document.createElement('div');w.className='code';
+    const h=document.createElement('div');h.className='code-h';const lb=document.createElement('span');lb.textContent=m[1]||'código';h.appendChild(lb);
+    const cp=document.createElement('button');cp.type='button';cp.textContent='Copiar';cp.onclick=()=>{try{navigator.clipboard.writeText(code);cp.textContent='Copiado'}catch(e){}};h.appendChild(cp);
+    const pre=document.createElement('pre');pre.textContent=code;w.appendChild(h);w.appendChild(pre);d.appendChild(w);i=re.lastIndex;
+  }
+  txt(t.slice(i));
+}
 function renderChat(keep){
   const box=$('#msgs'),prevTop=box.scrollTop;box.innerHTML='';
   chat.forEach(m=>{
-    const d=document.createElement('div');d.className='b '+m.who+(m.crisis?' crisis':'')+(m.card?' hascard':'');d.textContent=m.text;
+    const d=document.createElement('div');d.className='b '+m.who+(m.crisis?' crisis':'')+(m.card?' hascard':'');if(m.img){const im=document.createElement('img');im.className='pic';im.alt='Imagen enviada';im.src=m.img;d.appendChild(im)}fillText(d,m.text);
     if(m.card&&window.DINAMICAS)try{d.appendChild(DINAMICAS.render(m,{send:q=>send(q),update:()=>{save();renderChat(true)}}))}catch(e){}
     if(m.crisis){const r=document.createElement('div');r.className='row';r.style.marginTop='10px';
       (m.links||[['Llamar al 113','tel:113'],['Emergencias 105','tel:105']]).forEach(([l,h])=>{const a=document.createElement('a');a.className='chip';a.href=h;a.textContent=l;r.appendChild(a)});d.appendChild(r)}
@@ -162,19 +176,79 @@ let busy=false;
 function typing(on){const o=$('#typing');if(o)o.remove();if(!on)return;const d=document.createElement('div');d.id='typing';d.className='b bot typing';d.setAttribute('aria-label','Compi está escribiendo');d.innerHTML='<i></i><i></i><i></i>';const box=$('#msgs');box.appendChild(d);box.scrollTop=box.scrollHeight}
 let aiWarned=false;
 function aiNote(){if(aiWarned)return;aiWarned=true;toast('Compi está en modo básico por ahora')}
-async function askAI(text){
+async function askAI(text,opts){
   const msgs=chat.slice(-12).map(m=>({role:m.who==='me'?'user':'assistant',content:m.text}));
   while(msgs.length&&msgs[0].role!=='user')msgs.shift();
-  const A=analyze(text);
+  const img=opts&&opts.image;
+  if(img&&msgs.length)msgs[msgs.length-1].content=text||'Mira esta imagen. Describe lo importante; si tiene texto, léelo; si es un ejercicio o problema, resuélvelo paso a paso; si es código, explícalo.';
+  const A=analyze(text||'imagen');
   const body={messages:msgs,profile:{name:prof.name,music:prof.music,food:prof.food,act:prof.act,facts:window.CEREBRO?CEREBRO.factsText():''},mood:A.top?A.top.k:''};
-  const res=await Promise.race([sb.functions.invoke('compi-chat',{body}),new Promise((_,rj)=>setTimeout(()=>rj(new Error('timeout')),20000))]);
+  if(img){const mm=/^data:([^;]+);base64,(.*)$/.exec(img);if(mm)body.image={mime:mm[1],data:mm[2]}}
+  const res=await Promise.race([sb.functions.invoke('compi-chat',{body}),new Promise((_,rj)=>setTimeout(()=>rj(new Error('timeout')),img?40000:20000))]);
   if(res.error||!res.data||typeof res.data.text!=='string'||!res.data.text.trim())throw(res.error||new Error('empty'));
   return cleanAI(res.data.text);
 }
 function cleanAI(t){
+  return t.split(/(```[\s\S]*?```)/).map((p,i)=>i%2?p:cleanPlain(p)).join('');
+}
+function cleanPlain(t){
   return t.replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g,'($1)/($2)').replace(/\\cdot/g,'·').replace(/\\(ln|log|sin|cos|tan)\b/g,'$1').replace(/\\[()\[\]]/g,'').replace(/\$+/g,'').replace(/[{}]/g,'')
     .replace(/\*\*|__/g,'').replace(/^#{1,6}\s+/gm,'').replace(/^\s*[*-]\s+/gm,'• ').replace(/\n{3,}/g,'\n\n').trim();
 }
+
+/* ---------- imágenes ---------- */
+function prepImage(file){
+  return new Promise((ok,no)=>{
+    const rd=new FileReader();
+    rd.onerror=()=>no(new Error('lectura'));
+    rd.onload=()=>{
+      const im=new Image();
+      im.onerror=()=>no(new Error('imagen'));
+      im.onload=()=>{
+        const draw=(max,q)=>{const sc=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.width*sc));c.height=Math.max(1,Math.round(im.height*sc));const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);return c.toDataURL('image/jpeg',q)};
+        ok({full:draw(1280,.85),thumb:draw(180,.55)});
+      };
+      im.src=rd.result;
+    };
+    rd.readAsDataURL(file);
+  });
+}
+const loadScriptOnce=u=>new Promise((ok,no)=>{const e=document.createElement('script');e.src=u;e.onload=ok;e.onerror=()=>no(new Error('carga'));document.head.appendChild(e)});
+async function ocrReply(url,cap){
+  let txt='';
+  try{
+    if(!window.Tesseract)await loadScriptOnce('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
+    const r=await Promise.race([window.Tesseract.recognize(url,'spa+eng'),new Promise((_,no)=>setTimeout(()=>no(new Error('timeout')),60000))]);
+    txt=String((r&&r.data&&r.data.text)||'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+  }catch(e){return 'Ahora no pude leer la imagen: necesito conexión para cargar el lector. Inténtalo de nuevo en un momento o escríbeme el texto.'}
+  if(txt.replace(/\s/g,'').length<3)return 'Revisé la imagen y no encontré texto legible. Con mi IA conectada puedo describir fotos y dibujos; mientras tanto cuéntame qué muestra y te ayudo.';
+  const one=txt.replace(/\s+/g,' ').slice(0,500);
+  const res=[];
+  if(window.CEREBRO){
+    const ctx={name:first(prof&&prof.name,''),prof};
+    const lines=txt.split('\n').map(l=>l.trim()).filter(l=>l.length>2).slice(0,8);
+    for(const l of lines){try{const t=CEREBRO.tool(l,norm(l),ctx);if(t&&t.text&&/^(Procedimiento|[^\n]*=)/.test(t.text)&&res.length<3)res.push(t.text)}catch(e){}}
+    if(!res.length){try{const k=CEREBRO.ask(cap||one,norm(cap||one),ctx);if(k&&k.text)res.push(k.text)}catch(e){}}
+  }
+  return 'Esto es lo que leí en la imagen:\n«'+one+'»'+(res.length?'\n\n'+res.join('\n\n'):'\n\nDime qué necesitas hacer con ese texto y te ayudo.')+'\n\n(Lectura básica sin IA; con conexión a mi IA también entiendo fotos y dibujos.)';
+}
+async function sendImage(file){
+  if(!file||busy)return;
+  if(!/^image\//.test(file.type||'')){toast('Elige una imagen (JPG o PNG)');return}
+  busy=true;
+  try{
+    const im=await prepImage(file);
+    const cap=$('#inp').value.trim();$('#inp').value='';
+    say('me',cap||'📷 Imagen',{img:im.thumb});typing(true);
+    let out=null;
+    if(CLOUD){try{out=await askAI(cap,{image:im.full})}catch(e){console.warn('IA imagen:',e)}}
+    if(!out)out=await ocrReply(im.full,cap);
+    say('bot',out);
+  }catch(e){say('bot','No pude abrir esa imagen. Prueba con otra (JPG o PNG).')}
+  finally{busy=false;typing(false)}
+}
+$('#attach').onclick=()=>$('#pic').click();
+$('#pic').onchange=e=>{const f=e.target.files&&e.target.files[0];e.target.value='';sendImage(f)};
 function send(text){
   text=text.trim();if(!text||busy)return;
   busy=true;say('me',text);$('#inp').value='';typing(true);
@@ -592,13 +666,13 @@ function reply(text){
     if(/^(no|nop|nel)\s*([.,!]|$)|^(no gracias|ahora no|luego|despues|mas tarde|en otro momento)/.test(t))return 'Entendido. Cuando quieras, aquí estoy.';
   }
   if(pending){const w=parseWhen(t);if(w){const ti=pending;pending=null;addEvent(ti,w);return `Listo, ${prof.name}. Te aviso «${ti}» el ${fmt(w)}.`}}
+  if(window.DINAMICAS){const dn=DINAMICAS.handle(t);if(dn){offer=null;return dn}}
   if(/\b(cancela|borra|elimina|quita|anula)\w*/.test(t)&&/recordatorio|aviso|alarma|alerta|ultimo|eso/.test(t))return cancelLast();
   if(STRONG.test(t)){const r=remind(text,t);return r.startsWith('Listo')?r+tasteNote(analyze(text)):r}
   const aq=agendaQuery(t);if(aq)return aq;
   const w=parseWhen(t);
   if(w&&WEAK.test(t))return remind(text,t);
   if(w&&OBLIG.test(t)){const r=remind(text,t,true);return r+tasteNote(analyze(text))}
-  if(window.DINAMICAS){const dn=DINAMICAS.handle(t);if(dn){offer=null;return dn}}
   if(window.CEREBRO){const tl=CEREBRO.tool(text,t,{name:first(prof&&prof.name,''),prof});if(tl){offer=null;if(tl.name){prof.name=tl.name;save()}return tl.text}}
   const as=assist(text,t);if(as)return as;
   return CLOUD?{ai:true,local:localTalk(text,t)}:localTalk(text,t);
