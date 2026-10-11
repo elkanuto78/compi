@@ -205,7 +205,7 @@ function pickBuild(items,boots,W,opt){
     for(const i of pool){
       if(chosen.includes(i)||chosen.some(x=>x.e===i.e))continue;
       const f=fam(i);if(f&&fams.has(f))continue;
-      const s=score(i,W,tot)+(opt.sup&&SUPP.test(i.e)?.18:0)+(opt.bonus&&opt.bonus.test(i.e)?.3:0);
+      const s=score(i,W,tot)+(opt.sup&&SUPP.test(i.e)?.18:0)+(opt.bonus&&opt.bonus.test(i.e)?.3:0)+(opt.like&&opt.like.test(i.e)?.35:0)-(opt.hate&&opt.hate.test(i.e)?1.5:0);
       if(s>bs){bs=s;best=i}
     }
     if(!best)break;
@@ -285,32 +285,56 @@ function startItem(k,rl){
   if(k==='apm'||k==='apa'||k==='apf')return{...P('1056','Anillo de Doran'),tip:'Da vida y poder de habilidad, y recupera maná al matar súbditos. Y una poción de vida.'};
   return{...P('1055','Hoja de Doran'),tip:'Da daño y robo de vida para la fase de línea. Y una poción de vida.'};
 }
+const NOAUTO=/Nashor|Wit's End|Guinsoo|Rageblade|Terminus|Kraken|Blade of the Ruined/i;
+const ONHIT=new Set(['Kayle','Teemo','KogMaw','Gwen','Varus','Vayne','Twitch','Kindred','Azir','Zeri','Jax','Nasus','Yorick']);
+const HINT={
+Anivia:{like:/Rod of Ages|Fimbulwinter|Archangel|Seraph|Rabadon|Liandry|Zhonya|Horizon Focus|Void Staff|Shadowflame|Cosmic Drive|Rylai|Blackfire|Luden/i,hate:/Gunblade|Lich Bane|Riftmaker|Stormsurge|Hextech Rocketbelt/i},
+Brand:{like:/Liandry|Rylai|Malignance|Blackfire|Horizon|Shadowflame|Void Staff|Rabadon|Cryptbloom|Zhonya/i},
+Zyra:{like:/Liandry|Rylai|Malignance|Blackfire|Horizon|Shadowflame|Void Staff|Rabadon|Cryptbloom|Zhonya|Cosmic/i},
+Xerath:{like:/Luden|Shadowflame|Horizon|Rabadon|Void Staff|Cosmic|Zhonya|Archangel|Seraph/i},
+Velkoz:{like:/Luden|Shadowflame|Horizon|Rabadon|Void Staff|Cosmic|Zhonya|Archangel|Seraph|Liandry/i},
+Lux:{like:/Luden|Shadowflame|Horizon|Rabadon|Void Staff|Cosmic|Zhonya|Archangel|Seraph|Stormsurge/i},
+KogMaw:{like:/Wit's End|Nashor|Blade of the Ruined|Guinsoo|Rabadon|Terminus|Kraken|Runaan|Statikk/i},
+Teemo:{like:/Liandry|Nashor|Rabadon|Void Staff|Cosmic|Cryptbloom|Zhonya|Rylai/i},
+Karthus:{like:/Liandry|Rylai|Cryptbloom|Void Staff|Rabadon|Shadowflame|Horizon|Cosmic/i},
+Veigar:{like:/Rabadon|Void Staff|Shadowflame|Horizon|Cosmic|Archangel|Seraph|Zhonya|Liandry|Luden/i},
+Cassiopeia:{like:/Liandry|Rylai|Cryptbloom|Void Staff|Rabadon|Seraph|Archangel|Zhonya|Horizon/i},
+Ryze:{like:/Rod of Ages|Archangel|Seraph|Rabadon|Void Staff|Cosmic|Zhonya|Liandry|Fimbulwinter/i},
+Kayle:{like:/Nashor|Rabadon|Guinsoo|Wit's End|Terminus|Void Staff|Shadowflame|Rylai|Riftmaker/i},
+Soraka:{like:/Ardent|Staff of Flowing Water|Moonstone|Redemption|Mikael|Dawncore|Echoes of Helia|Imperial Mandate|Harmonic/i},
+Janna:{like:/Ardent|Staff of Flowing Water|Moonstone|Redemption|Mikael|Dawncore|Echoes of Helia|Imperial Mandate|Shurelya|Zephyr/i},
+Yuumi:{like:/Ardent|Staff of Flowing Water|Moonstone|Redemption|Mikael|Dawncore|Echoes of Helia|Imperial Mandate|Shurelya/i}
+};
 const START={T:'Hechizos: Salto + Teletransporte (o Ignición). Inicio: Escudo/Hoja de Doran + poción.',J:'Hechizos: Salto + Aplastar. Inicio: objeto de jungla (mascota) + pociones.',M:'Hechizos: Salto + Ignición (o Barrera / Teletransporte). Inicio: Anillo/Hoja de Doran + poción.',A:'Hechizos: Salto + Curar (o Barrera). Inicio: Hoja de Doran + poción.',S:'Hechizos: Salto + Agotamiento, Ignición o Curar. Inicio: objeto de soporte + guardián de visión.'};
 function profKey(c,rl){
   const k=classify(c),ap=AP_OVER.has(c.id)||(!AD_OVER.has(c.id)&&c.mag>c.att);
-  if(rl==='S'){if(k==='sup'||k==='tkp')return k;return ap?'sup':'supad'}
+  if(rl==='S'){if(c.tags[0]!=='Support')return k==='sup'?(ap?'apm':'adm'):k;if(k==='sup'||k==='tkp')return k;return ap?'sup':'supad'}
   if(k==='sup')return ap?'apm':'adm';
   return k;
 }
-function tweak(W,rl){
+function tweak(W,rl,c){
   const w={...W};
+  if(rl==='S'&&c&&c.tags[0]!=='Support'){w.haste=(w.haste||0)+.35;w.hp=(w.hp||0)+.1;w.mreg=(w.mreg||0)+.2}
   if(rl==='T'){w.hp=(w.hp||0)+.2;w.armor=(w.armor||0)+.15;w.mr=(w.mr||0)+.12}
   else if(rl==='J'){w.haste=(w.haste||0)+.2;w.hp=(w.hp||0)+.12}
   return w;
 }
 function builds(c,D,rl,ov){
   rl=rl||defRoles(c)[0];
-  const items=D.items.filter(i=>!i.b),boots=D.items.filter(i=>i.b);
+  const usesMana=/man[aá]/i.test(c.pt||'Mana');
+  const items=D.items.filter(i=>!i.b&&(usesMana||!((i.s.mana||0)>=250))),boots=D.items.filter(i=>i.b);
   const k=profKey(c,rl),P=PROFILES[k];
   const list=P.B.map((x,i)=>[x[0],x[1],x[2],x[3],x[4]]);
   if(Math.abs(c.att-c.mag)<=2&&c.att>=6&&c.mag>=6&&(k==='adm'||k==='ada'||k==='adf'||k==='apm'||k==='apa'||k==='apf')){list[4]=[HYB[0],HYB[1],HYB[2],'conq']}
   const ENCH=/Moonstone|Flowing Water|Ardent|Redemption|Mikael|Shurelya|Imperial Mandate|Locket|Knight's Vow|Echoes of Helia|Dawncore/i;
   const res=list.map(([name,para0,W0,rp0,xo],bi)=>{
     const alt=ov&&ov[bi]&&PAGES[ov[bi]]?ov[bi]:null,rp=alt||rp0;
-    const W=tweak(W0,rl);
+    const W=tweak(W0,rl,c);
     if(RT[rp])for(const kk in RT[rp])if(!(W[kk]<0))W[kk]=(W[kk]||0)+RT[rp][kk];
     const para=alt?para0+' Ajustada a la runa elegida.':para0;
-    const r=pickBuild(items,boots,W,{sup:rl==='S',bonus:(xo&&xo.bonus)||((k==='sup')&&bi<2?ENCH:null)});
+    const hint=HINT[c.id]||{},kk0=k;
+    const hate=hint.hate||((kk0==='apm'||kk0==='apa'||kk0==='apf')&&!ONHIT.has(c.id)?NOAUTO:null);
+    const r=pickBuild(items,boots,W,{sup:k==='sup'||k==='supad'||k==='tkp'&&rl==='S',bonus:(xo&&xo.bonus)||((k==='sup')&&bi<2?ENCH:null),like:hint.like,hate});
     const top=Object.entries(W).filter(([a,b])=>b>0&&LAB[a]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([a])=>LAB[a]);
     return{name,para,alt:!!alt,items:orderItems(r.items,k,rl),boots:r.boots,tot:r.tot,focus:top,rp,opts:RALT[k]||[],start:startItem(k,rl),bootAt:(rl==='S'||k==='tkp')?0:1};
   });
