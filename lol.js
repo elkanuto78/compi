@@ -196,13 +196,14 @@ function score(it,W,tot){
   return sum/g*(0.55+0.45*Math.min(1,g/3200));
 }
 function pickBuild(items,boots,W,opt){
-  const pool=items.filter(i=>opt.sup||!SUPP.test(i.e));
+  const seenN=new Set();
+  const pool=items.filter(i=>(opt.sup||!SUPP.test(i.e))&&!seenN.has(i.e)&&seenN.add(i.e));
   const chosen=[],fams=new Set(),tot={};
   const fam=i=>{for(const [re,n] of FAMS)if(re.test(i.e))return n;return i.f.includes('3057')?'spellblade':i.f.includes('3077')?'hydra':null};
   for(let n=0;n<5;n++){
     let best=null,bs=-1e9;
     for(const i of pool){
-      if(chosen.includes(i))continue;
+      if(chosen.includes(i)||chosen.some(x=>x.e===i.e))continue;
       const f=fam(i);if(f&&fams.has(f))continue;
       const s=score(i,W,tot)+(opt.sup&&SUPP.test(i.e)?.18:0)+(opt.bonus&&opt.bonus.test(i.e)?.3:0);
       if(s>bs){bs=s;best=i}
