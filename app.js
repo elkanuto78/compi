@@ -656,6 +656,7 @@ function reply(text){
   const ta=teach(text);if(ta)return ta;
   if(!fuWait){try{fuWait=store.get(K('fuw'),null)}catch(e){}}
   if(fuWait){const f=fuWait;fuWait=null;store.set(K('fuw'),null);if(Date.now()-f.t<3*36e5){const fr=fuReply(f,text,t);if(fr)return fr}}
+  if(window.CODEGEN){const cg=CODEGEN.match(t);if(cg){offer=null;pending=null;if(cg.none){const nn=CODEGEN.none();return CLOUD?{ai:true,local:nn}:nn}return cg.text}}
   if(offer){
     const o=offer;offer=null;
     if(/^(si|sii|dale|ok|okay|claro|por favor|porfa|vale|bueno|de acuerdo|listo|hazlo)\b/.test(t)){
