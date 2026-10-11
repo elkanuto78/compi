@@ -244,6 +244,9 @@ a.btn[hidden]{display:none}
 .lol-items{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .lol-it{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:7px 9px;font-size:13px;font-weight:600;line-height:1.2}
 .lol-it.boots{border-style:dashed}
+.lol-it.start{background:var(--chip)}
+.lol-itx{display:flex;flex-direction:column;min-width:0}
+.lol-itx small{font-size:10.5px;font-weight:700;color:var(--mute);text-transform:uppercase;letter-spacing:.05em}
 .lol-ico{position:relative;flex:none}
 .lol-ico::after{content:attr(data-n);position:absolute;right:-5px;bottom:-5px;min-width:17px;height:17px;border-radius:9px;background:var(--acc);color:var(--on);font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 3px}
 .lol-ic{width:38px;height:38px;border-radius:8px;border:1px solid var(--line);display:block}
