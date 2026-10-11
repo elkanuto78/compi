@@ -12,7 +12,7 @@ let last={id:null,more:'',at:0,quiz:null};
 let game=null;
 const seen={};
 const ASKY=/\?|\b(que|como|cual|cuales|cuanto|cuantos|cuando|donde|quien|quienes|por que|para que|explic\w+|dime|define|ensen\w+|hablame|cuentame|dame|consejos?|tips?|ayuda\w*|necesito|sabes|recomiend\w+|ideas?|guiame|ponme|hazme|diferencia|sinonimos?|formula|reglas?|leyes|tecnica|metodo|datos?|sobre|saber|aprender|informacion)\b/;
-const FREE=new Set('trabajo-equipo sobrecarga grupo-no-cumple hablar-publico examen-nervios soledad ruptura celos duelo bullying culpa verguenza miedo cansancio fracaso insomnio panico burnout timidez perfeccionismo procrastinar estres ansiedad-social act-conductual pensamientos-neg autoestima ira familia comparacion-redes tecnologia-redes pesadillas estres-uni futuro amor motivacion soledad-estudio que-hacer-triste ansiedad-control'.split(' '));
+const FREE=new Set('prog-empezar trabajo-equipo sobrecarga grupo-no-cumple hablar-publico examen-nervios soledad ruptura celos duelo bullying culpa verguenza miedo cansancio fracaso insomnio panico burnout timidez perfeccionismo procrastinar estres ansiedad-social act-conductual pensamientos-neg autoestima ira familia comparacion-redes tecnologia-redes pesadillas estres-uni futuro amor motivacion soledad-estudio que-hacer-triste ansiedad-control'.split(' '));
 const REGEN=new Set(['dato-curioso','adivinanza','trivia','cuento','verdad-reto','piropo']);
 const QA=[['blanca por dentro','La pera.'],['tengo agujas','El reloj.'],['vuelo sin alas','El viento.'],['oro parece','El plátano.'],['si me nombras','El silencio.'],['sube y baja','La escalera.'],['planeta mas grande','Júpiter.'],['hombre llego a la luna','En 1969 (Apolo 11, 20 de julio).'],['mas caudaloso','El Amazonas.'],['hexagono','Seis.'],['simbolo quimico del oro','Au (del latín aurum).'],['mona lisa','Leonardo da Vinci.']];
 
@@ -77,7 +77,7 @@ function vocab(){
   const add=(w,c)=>{if(w.length>=4)VOC[w]=(VOC[w]||0)+(c||1)};
   const src=window.COMPI_VOCAB;
   if(src&&typeof src==='object')for(const w in src)add(w,src[w]);
-  KB().forEach(e=>{(norm(e.a.join(' ')).match(/[a-z]{4,}/g)||[]).forEach(w=>add(w,2));e.id.split('-').forEach(w=>add(w,3))});
+  KB().forEach(e=>{(norm(e.a.join(' ')).match(/[a-z]{4,}/g)||[]).forEach(w=>add(w,2));e.id.split('-').forEach(w=>add(w,3));(e.re.source.match(/[a-z]{4,}/g)||[]).forEach(w=>add(w,2))});
   VBY={};for(const w in VOC)(VBY[w[0]]=VBY[w[0]]||[]).push(w);
   return VOC;
 }
