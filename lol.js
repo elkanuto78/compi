@@ -243,6 +243,28 @@ sup:['aery','guardian','comet','aftershock','aery'],supad:['guardian','guardian'
 };
 const SUPAD={n:'Soporte (daño físico)',B:PROFILES.sup.B.map(([a,b,W])=>{const w={...W};if('ap' in w){w.ad=w.ap;w.ap=-1}return[a,b,w]})};
 PROFILES.supad=SUPAD;
+const DEFS=it=>{const s=it.s,a=(s.armor||0)*GOLD.armor+(s.mr||0)*GOLD.mr+(s.hp||0)*GOLD.hp,o=['ad','ap','as','crit','haste','leth','arpen','mpen','mpenp','mana'].reduce((x,k)=>x+(s[k]||0)*(GOLD[k]||0),0);return a/((a+o)||1)};
+function orderItems(list,k,rl){
+  const tank=k==='tkp';
+  const pri=(it,i)=>{
+    const s=it.s;let p=i;
+    if(!tank&&DEFS(it)>.6)p+=20;
+    if(tank&&DEFS(it)<.35)p+=20;
+    if((s.mana||0)>=500&&(s.ap||0)>0&&!tank)p-=6;
+    if(it.g<=2800)p-=1.2;
+    if(it.g>=3400)p+=1.2;
+    return p;
+  };
+  return list.map((it,i)=>[it,pri(it,i)]).sort((a,b)=>a[1]-b[1]).map(x=>x[0]);
+}
+function startItem(k,rl){
+  const P=(id,n)=>({id,n});
+  if(rl==='S')return{...P('3865','Atlas del Mundo'),tip:'Compra también 1 guardián de visión y mejora el objeto de soporte cuando puedas.'};
+  if(rl==='J')return{...P('1101','Objeto de jungla (mascota)'),tip:'Elige la mascota según tu ruta y lleva pociones.'};
+  if(k==='tkp')return{...P('1054','Escudo de Doran'),tip:'Y una poción de vida.'};
+  if(k==='apm'||k==='apa'||k==='apf')return{...P('1056','Anillo de Doran'),tip:'Da vida y poder de habilidad, y recupera maná al matar súbditos. Y una poción de vida.'};
+  return{...P('1055','Hoja de Doran'),tip:'Da daño y robo de vida para la fase de línea. Y una poción de vida.'};
+}
 const START={T:'Hechizos: Salto + Teletransporte (o Ignición). Inicio: Escudo/Hoja de Doran + poción.',J:'Hechizos: Salto + Aplastar. Inicio: objeto de jungla (mascota) + pociones.',M:'Hechizos: Salto + Ignición (o Barrera / Teletransporte). Inicio: Anillo/Hoja de Doran + poción.',A:'Hechizos: Salto + Curar (o Barrera). Inicio: Hoja de Doran + poción.',S:'Hechizos: Salto + Agotamiento, Ignición o Curar. Inicio: objeto de soporte + guardián de visión.'};
 function profKey(c,rl){
   const k=classify(c),ap=AP_OVER.has(c.id)||(!AD_OVER.has(c.id)&&c.mag>c.att);
@@ -267,7 +289,7 @@ function builds(c,D,rl){
     const W=tweak(W0,rl);
     const r=pickBuild(items,boots,W,{sup:rl==='S',bonus:(k==='sup')&&bi<2?ENCH:null});
     const top=Object.entries(W).filter(([a,b])=>b>0&&LAB[a]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([a])=>LAB[a]);
-    return{name,para,items:r.items,boots:r.boots,tot:r.tot,focus:top,rp};
+    return{name,para,items:orderItems(r.items,k,rl),boots:r.boots,tot:r.tot,focus:top,rp,start:startItem(k,rl),bootAt:(rl==='S'||k==='tkp')?0:1};
   });
   return{cls:P.n,builds:res,rl};
 }
@@ -336,11 +358,15 @@ function draw(w,m,api,D){
   w.appendChild(tabs);
   const b=B.builds[c.bi]||B.builds[0];
   const bh=el('div','lol-bh');bh.appendChild(el('div','lol-bt',`Build ${c.bi+1} · ${b.name}`));bh.appendChild(el('div','lol-bp',b.para));w.appendChild(bh);
-  w.appendChild(el('div','lol-sec','Objetos'));
+  w.appendChild(el('div','lol-sec','Orden de compra'));
   const row=el('div','lol-items');
-  b.items.forEach((it,i)=>{const x=el('div','lol-it');const ic=el('div','lol-ico');ic.dataset.n=i+1;ic.appendChild(icon(D,'item',it.id));x.appendChild(ic);x.appendChild(el('span',null,it.n));row.appendChild(x)});
-  if(b.boots){const x=el('div','lol-it boots');const ic=el('div','lol-ico');ic.dataset.n='👟';ic.appendChild(icon(D,'item',b.boots.id));x.appendChild(ic);x.appendChild(el('span',null,b.boots.n));row.appendChild(x)}
+  const seq=[];seq.push({it:b.start,n:'🛒',kind:'start'});
+  const mk2=(it,i)=>({it,n:String(i+1)});
+  b.items.forEach((it,i)=>{if(b.boots&&i===b.bootAt&&b.bootAt===0)seq.push({it:b.boots,n:'👟',kind:'boots'});seq.push(mk2(it,i));if(b.boots&&i===b.bootAt-1)seq.push({it:b.boots,n:'👟',kind:'boots'})});
+  if(b.boots&&!seq.some(x=>x.kind==='boots'))seq.push({it:b.boots,n:'👟',kind:'boots'});
+  seq.forEach(sq=>{const x=el('div','lol-it'+(sq.kind==='boots'?' boots':sq.kind==='start'?' start':''));const ic=el('div','lol-ico');ic.dataset.n=sq.n;ic.appendChild(icon(D,'item',sq.it.id));x.appendChild(ic);const tx=el('div','lol-itx');tx.appendChild(el('span',null,sq.it.n));if(sq.kind)tx.appendChild(el('small',null,sq.kind==='start'?'Inicio':'Botas'));x.appendChild(tx);row.appendChild(x)});
   w.appendChild(row);
+  w.appendChild(el('div','lol-meta',b.start.tip));
   const rb=el('div','lol-runes');w.appendChild(rb);
   const pg=PAGES[b.rp];
   if(pg){
