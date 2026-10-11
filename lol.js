@@ -1,7 +1,7 @@
 /* Builds de League of Legends para Compi: lee en vivo los datos oficiales del parche (Data Dragon) y arma 5 builds por campeón. */
 (function(){
 const DD='https://ddragon.leagueoflegends.com';
-const CK='compi_lol_v3';
+const CK='compi_lol_v4';
 const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
 const ROLEMAP={Aatrox:'T',Ahri:'M',Akali:'MT',Akshan:'MA',Alistar:'S',Ambessa:'T',Amumu:'J',Anivia:'M',Annie:'MS',Aphelios:'A',Ashe:'AS',AurelionSol:'M',Aurora:'MT',Azir:'M',Bard:'S',Belveth:'J',Blitzcrank:'S',Brand:'SMJ',Braum:'S',Briar:'J',Caitlyn:'A',Camille:'T',Cassiopeia:'M',Chogath:'TM',Corki:'M',Darius:'T',Diana:'JM',Draven:'A',DrMundo:'TJ',Ekko:'JM',Elise:'J',Evelynn:'J',Ezreal:'A',Fiddlesticks:'J',Fiora:'T',Fizz:'M',Galio:'MS',Gangplank:'T',Garen:'T',Gnar:'T',Gragas:'JT',Graves:'J',Gwen:'T',Hecarim:'J',Heimerdinger:'M',Hwei:'M',Illaoi:'T',Irelia:'TM',Ivern:'J',Janna:'S',JarvanIV:'J',Jax:'TJ',Jayce:'TM',Jhin:'A',Jinx:'A',Kaisa:'A',Kalista:'A',Karma:'SM',Karthus:'JM',Kassadin:'M',Katarina:'M',Kayle:'TM',Kayn:'J',Kennen:'T',Khazix:'J',Kindred:'J',Kled:'T',KogMaw:'A',KSante:'T',Leblanc:'M',LeeSin:'J',Leona:'S',Lillia:'J',Lissandra:'M',Lucian:'AM',Lulu:'S',Lux:'SM',Malphite:'TS',Malzahar:'M',Maokai:'TSJ',MasterYi:'J',Mel:'MS',Milio:'S',MissFortune:'A',MonkeyKing:'TJ',Mordekaiser:'T',Morgana:'SM',Naafiri:'MJ',Nami:'S',Nasus:'T',Nautilus:'S',Neeko:'MS',Nidalee:'J',Nilah:'A',Nocturne:'J',Nunu:'J',Olaf:'TJ',Orianna:'M',Ornn:'T',Pantheon:'ST',Poppy:'TJS',Pyke:'S',Qiyana:'M',Quinn:'T',Rakan:'S',Rammus:'J',RekSai:'J',Rell:'S',Renata:'S',Renekton:'T',Rengar:'JT',Riven:'T',Rumble:'TM',Ryze:'MT',Samira:'A',Sejuani:'J',Senna:'SA',Seraphine:'SMA',Sett:'TS',Shaco:'J',Shen:'T',Shyvana:'J',Singed:'T',Sion:'T',Sivir:'A',Skarner:'J',Smolder:'A',Sona:'S',Soraka:'S',Swain:'MS',Sylas:'MJ',Syndra:'M',TahmKench:'TS',Taliyah:'JM',Talon:'MJ',Taric:'S',Teemo:'T',Thresh:'S',Tristana:'AM',Trundle:'JT',Tryndamere:'T',TwistedFate:'M',Twitch:'A',Udyr:'JT',Urgot:'T',Varus:'A',Vayne:'AT',Veigar:'M',Velkoz:'SM',Vex:'M',Vi:'J',Viego:'J',Viktor:'M',Vladimir:'MT',Volibear:'JT',Warwick:'J',Xayah:'A',Xerath:'SM',XinZhao:'J',Yasuo:'MA',Yone:'MT',Yorick:'T',Yunara:'A',Yuumi:'S',Zac:'J',Zed:'M',Zeri:'A',Ziggs:'MA',Zilean:'SM',Zoe:'M',Zyra:'S'};
 const EXTRA={Chogath:['cho gath'],Khazix:['kha zix'],RekSai:['rek sai'],Velkoz:['vel koz'],KogMaw:['kog maw'],KSante:['k sante','ksante'],Belveth:['bel veth'],Kaisa:['kai sa'],Leblanc:['le blanc'],TahmKench:['tahm kench','kench'],Nunu:['willump','nunu y willump'],MonkeyKing:['wukong','sun wukong'],DrMundo:['mundo','dr mundo'],JarvanIV:['jarvan','jarvan iv','j4'],TwistedFate:['twisted fate','tf'],MasterYi:['master yi','yi'],AurelionSol:['aurelion sol','asol'],Fiddlesticks:['fiddlesticks','fiddle'],Vi:['vi'],MissFortune:['miss fortune','mf'],XinZhao:['xin zhao','xin']};
@@ -58,10 +58,12 @@ function parseStats(desc,st){
   }
   return o;
 }
+const QUEST=/^(Bloodsong|Celestial Opposition|Dream Maker|Solstice Sleigh|Zaz'Zak's Realmspike|Bounty of Worlds)$/i;
 function trimItems(en,es){
   const out=[],ed=(es&&es.data)||{};
   for(const id in en.data){
     const it=en.data[id],g=it.gold||{},tg=it.tags||[];
+    if(QUEST.test(it.name)&&it.maps&&it.maps['11']){out.push({id,e:it.name,n:(ed[id]&&ed[id].name)||it.name,g:g.total||2200,t:tg,s:parseStats(it.description,it.stats),f:it.from||[],b:0,q:1});continue}
     if(!it.maps||!it.maps['11']||!g.purchasable||it.requiredChampion||it.requiredAlly||it.consumed||it.inStore===false)continue;
     if(tg.some(t=>/Consumable|Trinket|Vision|Jungle|Lane/.test(t)))continue;
     const noInto=!it.into||!it.into.length;
@@ -197,7 +199,7 @@ function score(it,W,tot){
 }
 function pickBuild(items,boots,W,opt){
   const seenN=new Set();
-  const pool=items.filter(i=>(opt.sup||!SUPP.test(i.e))&&!(opt.exclude&&opt.exclude.has(i.e))&&!seenN.has(i.e)&&seenN.add(i.e));
+  const pool=items.filter(i=>!i.q&&!SUPP.test(i.e)&&!(opt.exclude&&opt.exclude.has(i.e))&&!seenN.has(i.e)&&seenN.add(i.e));
   const chosen=[],fams=new Set(),tot={};
   const fam=i=>{for(const [re,n] of FAMS)if(re.test(i.e))return n;return i.f.includes('3057')?'spellblade':i.f.includes('3077')?'hydra':null};
   for(let n=0;n<5;n++){
@@ -277,9 +279,21 @@ function orderItems(list,k,rl){
   };
   return list.map((it,i)=>[it,pri(it,i)]).sort((a,b)=>a[1]-b[1]).map(x=>x[0]);
 }
+const UPG={bloodsong:['3877',/^Bloodsong$/i,'Bloodsong','Daño: ataques y habilidades marcan al enemigo para más daño de tu equipo. Ideal para soportes de daño físico.'],celestial:['3869',/^Celestial Opposition$/i,'Celestial Opposition','Iniciación: da escudo y vida al comprometerte con control. Ideal para tanques e iniciadores.'],dream:['3870',/^Dream Maker$/i,'Dream Maker','Protección: tus escudos y curas aportan más a los aliados. Ideal para encantadores.'],sleigh:['3876',/^Solstice Sleigh$/i,'Solstice Sleigh','Utilidad: velocidad de movimiento para ti y tus aliados al hacer controles. Ideal para movilidad y utilidad.'],zaz:['3871',/^Zaz'Zak's Realmspike$/i,"Zaz'Zak's Realmspike",'Hostigamiento: daño mágico con tus habilidades y robo de oro/curación. Ideal para magos y daño mágico.'],bounty:['3867',/^Bounty of Worlds$/i,'Bounty of Worlds','Economía: genera más oro y te permite subir de nivel más rápido. Ideal si quieres escalar.']};
+function upgradeFor(D,k,rl,bi,c){
+  if(rl!=='S')return null;
+  const ap=k==='apm'||k==='apa'||k==='apf'||(k==='sup');
+  let key;
+  if(k==='sup')key=bi===0?'dream':bi===1?'sleigh':bi===2?'zaz':bi===3?'celestial':'sleigh';
+  else if(k==='tkp')key=bi===3?'zaz':'celestial';
+  else if(k==='supad'||k==='adm'||k==='ada'||k==='adf')key=bi===3?'celestial':'bloodsong';
+  else key=bi===3?'celestial':bi===4?'bounty':'zaz';
+  const u=UPG[key],f=D.items.find(i=>u[1].test(i.e));
+  return{id:f?f.id:u[0],n:f?f.n:u[2],tip:u[3]};
+}
 function startItem(k,rl){
   const P=(id,n)=>({id,n});
-  if(rl==='S')return{...P('3865','Atlas del Mundo'),tip:'Compra también 1 guardián de visión y mejora el objeto de soporte cuando puedas.'};
+  if(rl==='S')return{...P('3865','Atlas del Mundo'),tip:'Compra también 1 guardián de visión. Al completar la misión del Atlas (oro con tus súbditos y objetivos) lo evolucionas a otro objeto de soporte.'};
   if(rl==='J')return{...P('1101','Objeto de jungla (mascota)'),tip:'Elige la mascota según tu ruta y lleva pociones.'};
   if(k==='tkp')return{...P('1054','Escudo de Doran'),tip:'Y una poción de vida.'};
   if(k==='apm'||k==='apa'||k==='apf')return{...P('1056','Anillo de Doran'),tip:'Da vida y poder de habilidad, y recupera maná al matar súbditos. Y una poción de vida.'};
@@ -322,7 +336,7 @@ function tweak(W,rl,c){
 function builds(c,D,rl,ov,more){
   rl=rl||defRoles(c)[0];
   const usesMana=/man[aá]/i.test(c.pt||'Mana');
-  const items=D.items.filter(i=>!i.b&&(usesMana||!((i.s.mana||0)>=250))),boots=D.items.filter(i=>i.b);
+  const items=D.items.filter(i=>!i.b&&!i.q&&(usesMana||!((i.s.mana||0)>=250))),boots=D.items.filter(i=>i.b);
   const k=profKey(c,rl),P=PROFILES[k];
   const list=P.B.map((x,i)=>[x[0],x[1],x[2],x[3],x[4]]);
   if(Math.abs(c.att-c.mag)<=2&&c.att>=6&&c.mag>=6&&(k==='adm'||k==='ada'||k==='adf'||k==='apm'||k==='apa'||k==='apf')){list[4]=[HYB[0],HYB[1],HYB[2],'conq']}
@@ -336,7 +350,7 @@ function builds(c,D,rl,ov,more){
     const hate=hint.hate||((kk0==='apm'||kk0==='apa'||kk0==='apf')&&!ONHIT.has(c.id)?NOAUTO:null);
     const r=pickBuild(items,boots,W,{sup:k==='sup'||k==='supad'||k==='tkp'&&rl==='S',bonus:(xo&&xo.bonus)||((k==='sup')&&bi<2?ENCH:null),like:hint.like,hate,exclude:exclude||null});
     const top=Object.entries(W).filter(([a,b])=>b>0&&LAB[a]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([a])=>LAB[a]);
-    return{name,para,alt:!!alt,items:orderItems(r.items,k,rl),boots:r.boots,tot:r.tot,focus:top,rp,opts:RALT[k]||[],start:startItem(k,rl),bootAt:(rl==='S'||k==='tkp')?0:1};
+    return{name,para,alt:!!alt,items:orderItems(r.items,k,rl),boots:r.boots,tot:r.tot,focus:top,rp,opts:RALT[k]||[],start:startItem(k,rl),upg:upgradeFor(D,k,rl,bi,c),bootAt:(rl==='S'||k==='tkp')?0:1};
   };
   const res=list.map(([name,para0,W0,rp0,xo],bi)=>mkB(name,para0,W0,rp0,xo,bi));
   if(more>0){
@@ -435,13 +449,14 @@ function draw(w,m,api,D){
   const bh=el('div','lol-bh');const bt=el('div','lol-bt');bt.appendChild(el('span','lol-tier'+(c.bi<3?'':' alt'),c.bi<3?'TOP':c.bi<5?'ALTERNATIVA':'EXTRA'));bt.appendChild(document.createTextNode(' '+b.name));bh.appendChild(bt);bh.appendChild(el('div','lol-bp',b.para));w.appendChild(bh);
   w.appendChild(el('div','lol-sec','Orden de compra'));
   const row=el('div','lol-items');
-  const seq=[];seq.push({it:b.start,n:'🛒',kind:'start'});
+  const seq=[];seq.push({it:b.start,n:'🛒',kind:'start'});if(b.upg)seq.push({it:b.upg,n:'⬆',kind:'upg'});
   const mk2=(it,i)=>({it,n:String(i+1)});
   b.items.forEach((it,i)=>{if(b.boots&&i===b.bootAt&&b.bootAt===0)seq.push({it:b.boots,n:'👟',kind:'boots'});seq.push(mk2(it,i));if(b.boots&&i===b.bootAt-1)seq.push({it:b.boots,n:'👟',kind:'boots'})});
   if(b.boots&&!seq.some(x=>x.kind==='boots'))seq.push({it:b.boots,n:'👟',kind:'boots'});
-  seq.forEach(sq=>{const x=el('div','lol-it'+(sq.kind==='boots'?' boots':sq.kind==='start'?' start':''));const ic=el('div','lol-ico');ic.dataset.n=sq.n;ic.appendChild(icon(D,'item',sq.it.id));x.appendChild(ic);const tx=el('div','lol-itx');tx.appendChild(el('span',null,sq.it.n));if(sq.kind)tx.appendChild(el('small',null,sq.kind==='start'?'Inicio':'Botas'));x.appendChild(tx);row.appendChild(x)});
+  seq.forEach(sq=>{const x=el('div','lol-it'+(sq.kind==='boots'?' boots':sq.kind==='start'||sq.kind==='upg'?' start':''));const ic=el('div','lol-ico');ic.dataset.n=sq.n;ic.appendChild(icon(D,'item',sq.it.id));x.appendChild(ic);const tx=el('div','lol-itx');tx.appendChild(el('span',null,sq.it.n));if(sq.kind)tx.appendChild(el('small',null,sq.kind==='start'?'Inicio':sq.kind==='upg'?'Evoluciona el Atlas a':'Botas'));x.appendChild(tx);row.appendChild(x)});
   w.appendChild(row);
   w.appendChild(el('div','lol-meta',b.start.tip));
+  if(b.upg)w.appendChild(el('div','lol-note','⬆ Evoluciona tu Atlas a '+b.upg.n+'. '+b.upg.tip));
   const rb=el('div','lol-runes');w.appendChild(rb);
   const pg=PAGES[b.rp];
   if(pg){
