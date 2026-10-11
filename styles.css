@@ -242,7 +242,7 @@ a.btn[hidden]{display:none}
 .lol-tier.alt{background:transparent;color:var(--acc);box-shadow:inset 0 0 0 1.5px var(--acc)}
 .lol-keys{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .lol-key{position:relative;width:44px;height:44px;border-radius:50%;border:2px solid var(--line);background:#0d1b1d;padding:3px;cursor:pointer;opacity:.6;transition:.15s}
-.lol-key img{width:100%;height:100%;display:block}
+.lol-key img{width:34px;height:34px;display:block;margin:auto}
 .lol-key.on{opacity:1;border-color:var(--acc);box-shadow:0 0 10px color-mix(in srgb,var(--acc) 55%,transparent)}
 .lol-key i{position:absolute;right:-4px;top:-5px;font-style:normal;font-size:11px;color:#f2c14e}
 .lol-sec{display:flex;align-items:center;gap:8px;font-family:Fredoka,Nunito,system-ui,sans-serif;font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--acc);margin-top:4px}
