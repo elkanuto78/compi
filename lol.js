@@ -331,15 +331,15 @@ function draw(w,m,api,D){
   const rls=el('div','qz-menu');
   Object.keys(RL).forEach(k=>{const b0=el('button','chip'+(k===rl?' on':''),RL[k]+(usual.includes(k)?' ★':''));b0.type='button';b0.title=usual.includes(k)?'Rol habitual de este campeón':'Rol poco habitual';b0.onclick=()=>{c.rl=k;c.bi=0;api.update()};rls.appendChild(b0)});
   w.appendChild(rls);
-  const tabs=el('div','qz-menu');
-  B.builds.forEach((b,i)=>{const t=el('button','chip'+(i===c.bi?' on':''),`${i+1}`);t.type='button';t.title=b.name;t.onclick=()=>{c.bi=i;api.update()};tabs.appendChild(t)});
+  const tabs=el('div','qz-menu lol-tabs');
+  B.builds.forEach((b,i)=>{const t=el('button','chip'+(i===c.bi?' on':''),`${i+1}`);t.type='button';t.title=b.name;t.textContent='Build '+(i+1);t.onclick=()=>{c.bi=i;api.update()};tabs.appendChild(t)});
   w.appendChild(tabs);
   const b=B.builds[c.bi]||B.builds[0];
-  w.appendChild(el('div','qz-q',`Build ${c.bi+1}: ${b.name}`));
-  w.appendChild(el('div','ls-body',b.para));
+  const bh=el('div','lol-bh');bh.appendChild(el('div','lol-bt',`Build ${c.bi+1} · ${b.name}`));bh.appendChild(el('div','lol-bp',b.para));w.appendChild(bh);
+  w.appendChild(el('div','lol-sec','Objetos'));
   const row=el('div','lol-items');
-  b.items.forEach((it,i)=>{const x=el('div','lol-it');x.appendChild(icon(D,'item',it.id));x.appendChild(el('span',null,`${i+1}. ${it.n}`));row.appendChild(x)});
-  if(b.boots){const x=el('div','lol-it');x.appendChild(icon(D,'item',b.boots.id));x.appendChild(el('span',null,'Botas: '+b.boots.n));row.appendChild(x)}
+  b.items.forEach((it,i)=>{const x=el('div','lol-it');const ic=el('div','lol-ico');ic.dataset.n=i+1;ic.appendChild(icon(D,'item',it.id));x.appendChild(ic);x.appendChild(el('span',null,it.n));row.appendChild(x)});
+  if(b.boots){const x=el('div','lol-it boots');const ic=el('div','lol-ico');ic.dataset.n='👟';ic.appendChild(icon(D,'item',b.boots.id));x.appendChild(ic);x.appendChild(el('span',null,b.boots.n));row.appendChild(x)}
   w.appendChild(row);
   const rb=el('div','lol-runes');w.appendChild(rb);
   const pg=PAGES[b.rp];
@@ -349,21 +349,21 @@ function draw(w,m,api,D){
       const rr=(key)=>rune(D,key);
       const main=pg&&rr(pg.k);
       if(!main){rb.appendChild(el('div','lol-meta','Runas no disponibles ahora mismo (sin datos de Riot).'));return}
-      rb.appendChild(el('div','qz-q','Runas'));
+      rb.appendChild(el('div','lol-sec','Runas'));
       const cols=el('div','lol-rcols');
       const tn=k=>{const t=D.runes.find(x=>x.k===k);return t?t.n:k};
       const mk=(r,big)=>{const d=el('div','lol-rn'+(big?' big':''));const im=el('img',big?'lol-rbig':'lol-ric');im.alt='';im.loading='lazy';im.src=`${DD}/cdn/img/${r.i}`;im.onerror=()=>{im.style.visibility='hidden'};d.appendChild(im);d.appendChild(el('span',null,r.n));d.title=r.d||r.n;return d};
-      const c1=el('div','lol-rcol');c1.appendChild(el('div','lol-rt',tn(pg.t)));c1.appendChild(mk(main,true));pg.a.forEach(k=>{const r=rr(k);if(r)c1.appendChild(mk(r))});
-      const c2=el('div','lol-rcol');c2.appendChild(el('div','lol-rt',tn(pg.t2)));pg.b.forEach(k=>{const r=rr(k);if(r)c2.appendChild(mk(r))});
+      const c1=el('div','lol-rcol');c1.dataset.tree=pg.t;c1.appendChild(el('div','lol-rt',tn(pg.t)));c1.appendChild(mk(main,true));pg.a.forEach(k=>{const r=rr(k);if(r)c1.appendChild(mk(r))});
+      const c2=el('div','lol-rcol');c2.dataset.tree=pg.t2;c2.appendChild(el('div','lol-rt',tn(pg.t2)));pg.b.forEach(k=>{const r=rr(k);if(r)c2.appendChild(mk(r))});
       cols.appendChild(c1);cols.appendChild(c2);rb.appendChild(cols);
-      rb.appendChild(el('div','lol-meta','Fragmentos: '+pg.sh.join(' · ')+'.'));
+      const sh=el('div','lol-shards');sh.appendChild(el('span','lol-shl','Fragmentos'));pg.sh.forEach(x=>sh.appendChild(el('span','lol-shc',x)));rb.appendChild(sh);
     };
     if(D.runes)fillRunes();else{rb.appendChild(el('div','lol-meta','Cargando runas…'));loadRunes(D).then(fillRunes)}
   }
-  w.appendChild(el('div','lol-meta',START[rl]));
+  w.appendChild(el('div','lol-note','🎯 '+START[rl]));
   const T=b.tot,parts=[];
   [['ad','DA'],['ap','PH'],['as','VA %'],['crit','Crít %'],['armor','Arm'],['mr','RM'],['hp','Vida'],['haste','Acel.'],['leth','Letal.']].forEach(([k,l])=>{if(T[k])parts.push(`${l} ${Math.round(T[k])}`)});
-  w.appendChild(el('div','lol-meta','Prioriza: '+b.focus.join(', ')+'. Con los 5 objetos y botas: '+parts.join(' · ')+'.'));
+  w.appendChild(el('div','lol-note','⚔️ Prioriza: '+b.focus.join(', ')+'.'));if(parts.length){const st=el('div','lol-stats');parts.forEach(p=>st.appendChild(el('span','lol-st',p)));w.appendChild(el('div','lol-meta','Estadísticas con los 5 objetos y botas:'));w.appendChild(st)}
   const links=el('div','qz-menu'),s=slug(ch);
   [['op.gg',`https://www.op.gg/champions/${s}/build`],['u.gg',`https://u.gg/lol/champions/${s}/build`],['lolalytics',`https://lolalytics.com/lol/${s}/build/`]].forEach(([l,h])=>{const a=el('a','chip','📈 '+l);a.href=h;a.target='_blank';a.rel='noopener noreferrer';links.appendChild(a)});
   w.appendChild(links);
