@@ -148,14 +148,15 @@ $('#edit').onclick=showOnb;
 
 /* ---------- Chat ---------- */
 function say(who,text,x){chat.push(Object.assign({who,text},x||{}));save();if(!$('#main').hidden)renderChat()}
-function renderChat(){
-  const box=$('#msgs');box.innerHTML='';
+function renderChat(keep){
+  const box=$('#msgs'),prevTop=box.scrollTop;box.innerHTML='';
   chat.forEach(m=>{
-    const d=document.createElement('div');d.className='b '+m.who+(m.crisis?' crisis':'');d.textContent=m.text;
+    const d=document.createElement('div');d.className='b '+m.who+(m.crisis?' crisis':'')+(m.card?' hascard':'');d.textContent=m.text;
+    if(m.card&&window.DINAMICAS)try{d.appendChild(DINAMICAS.render(m,{send:q=>send(q),update:()=>{save();renderChat(true)}}))}catch(e){}
     if(m.crisis){const r=document.createElement('div');r.className='row';r.style.marginTop='10px';
       (m.links||[['Llamar al 113','tel:113'],['Emergencias 105','tel:105']]).forEach(([l,h])=>{const a=document.createElement('a');a.className='chip';a.href=h;a.textContent=l;r.appendChild(a)});d.appendChild(r)}
     box.appendChild(d)});
-  box.scrollTop=box.scrollHeight;
+  box.scrollTop=keep?prevTop:box.scrollHeight;
 }
 let busy=false;
 function typing(on){const o=$('#typing');if(o)o.remove();if(!on)return;const d=document.createElement('div');d.id='typing';d.className='b bot typing';d.setAttribute('aria-label','Compi está escribiendo');d.innerHTML='<i></i><i></i><i></i>';const box=$('#msgs');box.appendChild(d);box.scrollTop=box.scrollHeight}
@@ -188,7 +189,7 @@ function send(text){
           if(keep.length)out+='\n\n'+keep.join('\n');
         }catch(e){console.warn('IA no disponible:',e);aiNote();out=r.local}
         say('bot',out);
-      }else if(typeof r==='object')say('bot',r.text,{crisis:true,links:r.links});
+      }else if(typeof r==='object')say('bot',r.text,r.card?{card:r.card}:{crisis:true,links:r.links});
       else say('bot',r);
     }finally{busy=false;typing(false)}
   },450);
@@ -597,6 +598,7 @@ function reply(text){
   const w=parseWhen(t);
   if(w&&WEAK.test(t))return remind(text,t);
   if(w&&OBLIG.test(t)){const r=remind(text,t,true);return r+tasteNote(analyze(text))}
+  if(window.DINAMICAS){const dn=DINAMICAS.handle(t);if(dn){offer=null;return dn}}
   if(window.CEREBRO){const tl=CEREBRO.tool(text,t,{name:first(prof&&prof.name,''),prof});if(tl){offer=null;if(tl.name){prof.name=tl.name;save()}return tl.text}}
   const as=assist(text,t);if(as)return as;
   return CLOUD?{ai:true,local:localTalk(text,t)}:localTalk(text,t);
