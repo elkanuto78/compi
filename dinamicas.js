@@ -96,6 +96,7 @@ const pick=a=>a[R(a.length)];
 const menuAll=()=>({text:'¡Vamos a jugar un rato! Elige una dinámica:',card:{type:'menu',btns:[['🧮 Quiz de matemática','quiz de matematica'],['💻 Quiz de programación','quiz de programacion'],['🔬 Quiz de ciencia','quiz de ciencia'],['🌎 Cultura general y Perú','quiz de cultura'],['🌿 Quiz de bienestar','quiz de bienestar'],['🔤 Quiz de inglés','quiz de ingles'],['🫧 Respiración guiada','respiracion guiada'],['💬 Rompehielos','rompehielos'],['🎯 Reto del día','reto del dia'],['👥 Dinámica de grupo','dinamica de grupo']]}});
 const again=(t,l)=>({type:'menu',btns:[[l||'Otra más',t],['Ver dinámicas','dinamicas']]});
 function handle(t){
+  if(window.COMPI_LOL){const lr=COMPI_LOL.handle(t);if(lr)return lr}
   if(/\b(respiracion|respirar)\b/.test(t)&&/\b(guia\w*|ejercicio|dinamica|paso a paso|conmigo|interactiv\w*)\b/.test(t))return{text:'Respiremos juntos. Sigue el círculo: inhala cuando crece, sostén, y exhala cuando se encoge.',card:{type:'breath'}};
   if(/\brompehielo/.test(t)||/\b(pregunta|conversacion)\b.*\b(para conocer|rompe hielo)/.test(t))return{text:pick(ICE),card:again('rompehielos','Otra pregunta')};
   if(/\breto\b.*\b(dia|hoy|diario)\b|\bdame un reto\b|\bun reto\b/.test(t))return{text:pick(RETOS),card:again('reto del dia','Otro reto')};
@@ -206,6 +207,7 @@ function renderLesson(m,api){
 function mkBtn(label,cls,fn){const b=document.createElement('button');b.type='button';b.className=cls;b.textContent=label;b.onclick=fn;return b}
 function render(m,api){
   const c=m.card,w=document.createElement('div');w.className='qz';
+  if(c.type==='lol'&&window.COMPI_LOL)return COMPI_LOL.render(m,api);
   if(c.type==='lesson')return renderLesson(m,api);
   if(c.type==='menu'){
     const r=document.createElement('div');r.className='qz-menu';
