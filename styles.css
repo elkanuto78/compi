@@ -212,3 +212,16 @@ a.btn[hidden]{display:none}
 .qz .btn{align-self:flex-start;padding:10px 20px;font-size:15px}
 .br-ring{width:150px;height:150px;border-radius:50%;margin:10px auto;background:radial-gradient(circle,var(--acc),color-mix(in srgb,var(--acc) 35%,transparent));display:flex;align-items:center;justify-content:center;transform:scale(.55)}
 .br-lab{color:var(--on);font-weight:700;font-size:15px;text-align:center;padding:0 8px}
+
+.ls-body{font-size:15px;line-height:1.45}
+.ls-code{width:100%;box-sizing:border-box;font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0f1f21;color:#d7f3ee;border:0;border-radius:12px;padding:12px;resize:vertical;white-space:pre;overflow:auto;tab-size:2}
+.ls-code.ro{margin:0;white-space:pre;overflow-x:auto}
+.ls-out{margin:0;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace;background:var(--chip);color:var(--ink);border-radius:12px;padding:10px 12px;white-space:pre-wrap;min-height:2.4em}
+.ls-task{font-size:14px;background:var(--chip);border-radius:12px;padding:8px 12px}
+.code{margin:8px 0 2px;border-radius:12px;overflow:hidden;background:#0f1f21;color:#d7f3ee;text-align:left}
+.code-h{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:6px 10px;background:#173033;color:#9fd8cf}
+.code-h button{border:0;background:transparent;color:#9fd8cf;font:inherit;cursor:pointer;text-decoration:underline}
+.code pre{margin:0;padding:10px 12px;font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-x:auto;white-space:pre}
+
+.attach{flex:none;border:0;background:var(--chip);color:var(--ink);border-radius:999px;width:44px;height:44px;font-size:20px;cursor:pointer}
+.b img.pic{display:block;max-width:100%;width:200px;border-radius:12px;margin-bottom:6px}
