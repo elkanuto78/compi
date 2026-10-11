@@ -77,6 +77,22 @@ function trimItems(en,es){
 function trimChamps(j){
   return Object.values(j.data).map(c=>({id:c.id,name:c.name,title:c.title,tags:c.tags||[],att:c.info.attack,mag:c.info.magic,def:c.info.defense,dif:c.info.difficulty,rng:c.stats&&c.stats.attackrange,pt:c.partype}));
 }
+const DET={};
+try{Object.assign(DET,JSON.parse(localStorage.getItem('compi_lol_det_v1')||'{}'))}catch(e){}
+const lastNum=v=>{const a=String(v||'').split('/').map(x=>parseFloat(x)).filter(x=>!isNaN(x));return a.length?a[a.length-1]:null};
+async function champDetail(D,id){
+  if(DET[id])return DET[id];
+  try{
+    const j=await jf(`${DD}/cdn/${D.v}/data/es_MX/champion/${id}.json`),sp=(j.data[id]||{}).spells||[];
+    const mc=[],cd=[];
+    sp.slice(0,3).forEach(x=>{const m=lastNum(x.costBurn),c0=lastNum(x.cooldownBurn);if(m!=null)mc.push(m);if(c0!=null)cd.push(c0)});
+    const u=sp[3]?lastNum(sp[3].cooldownBurn):null,mu=sp[3]?lastNum(sp[3].costBurn):null;
+    const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+    DET[id]={mc:Math.round(avg(mc)),cd:Math.round(avg(cd)*10)/10,ucd:u,mu};
+    try{localStorage.setItem('compi_lol_det_v1',JSON.stringify(DET))}catch(e){}
+  }catch(e){DET[id]={mc:0,cd:0,ucd:null,mu:null,x:1}}
+  return DET[id];
+}
 let MEM=null,LASTC=null;try{LASTC=JSON.parse(localStorage.getItem('compi_lol_last')||'null')}catch(e){}
 const readCache=()=>{try{return JSON.parse(localStorage.getItem(CK)||'null')}catch(e){return null}};
 function trimRunes(j){return(j||[]).map(t=>({k:t.key,n:t.name,i:t.icon,s:t.slots.map(sl=>sl.runes.map(r=>({k:r.key,n:r.name,i:r.icon,d:String(r.shortDesc||'').replace(/<[^>]+>/g,'')})))}))}
@@ -201,7 +217,7 @@ function pickBuild(items,boots,W,opt){
   const seenN=new Set();
   const pool=items.filter(i=>!i.q&&!SUPP.test(i.e)&&!(opt.exclude&&opt.exclude.has(i.e))&&!seenN.has(i.e)&&seenN.add(i.e));
   const chosen=[],fams=new Set(),tot={};
-  if(opt.must){const m=pool.find(i=>opt.must.test(i.e));if(m){chosen.push(m);for(const k in m.s)tot[k]=(tot[k]||0)+m.s[k]}}
+  if(opt.must)(Array.isArray(opt.must)?opt.must:[opt.must]).forEach(re=>{const m=pool.find(i=>re.test(i.e)&&!chosen.includes(i));if(m&&chosen.length<5){chosen.push(m);for(const k in m.s)tot[k]=(tot[k]||0)+m.s[k]}});
   const fam=i=>{for(const [re,n] of FAMS)if(re.test(i.e))return n;return i.f.includes('3057')?'spellblade':i.f.includes('3077')?'hydra':null};
   for(let n=chosen.length;n<5;n++){
     let best=null,bs=-1e9;
@@ -345,11 +361,19 @@ function builds(c,D,rl,ov,more){
   const mkB=(name,para0,W0,rp0,xo,bi,exclude)=>{
     const alt=ov&&ov[bi]&&PAGES[ov[bi]]?ov[bi]:null,rp=alt||rp0;
     const W=tweak(W0,rl,c);
+    const det=DET[c.id];
+    if(det&&!det.x){
+      const up=(kk,v)=>{if(!(W[kk]<0))W[kk]=(W[kk]||0)+v};
+      if(usesMana&&det.mc>=70){up('mana',.45);up('mreg',.15)}
+      else if(usesMana&&det.mc>0&&det.mc<=35){up('mana',-.25)}
+      if(det.cd>0&&det.cd<=7)up('haste',.3);
+      else if(det.cd>=11)up('haste',-.15);
+    }
     if(RT[rp])for(const kk in RT[rp])if(!(W[kk]<0))W[kk]=(W[kk]||0)+RT[rp][kk];
     const para=alt?para0+' Ajustada a la runa elegida.':para0;
     const hint=HINT[c.id]||{},kk0=k;
     const hate=hint.hate||((kk0==='apm'||kk0==='apa'||kk0==='apf')&&!ONHIT.has(c.id)?NOAUTO:null);
-    const r=pickBuild(items,boots,W,{sup:k==='sup'||k==='supad'||k==='tkp'&&rl==='S',bonus:(xo&&xo.bonus)||((k==='sup')&&bi<2?ENCH:null),like:hint.like,hate,exclude:exclude||null,must:hint.must&&bi<(hint.mustN||0)?hint.must:null});
+    const r=pickBuild(items,boots,W,{sup:k==='sup'||k==='supad'||k==='tkp'&&rl==='S',bonus:(xo&&xo.bonus)||((k==='sup')&&bi<2?ENCH:null),like:hint.like,hate,exclude:exclude||null,must:(()=>{const ms=[];if(hint.must&&bi<(hint.mustN||0))ms.push(hint.must);const dt=DET[c.id];if(dt&&!dt.x&&usesMana&&dt.mc>=75&&(k==='apm'||k==='apa'||k==='apf'||k==='sup')&&bi<3)ms.push(/^Seraph's Embrace$/);return ms.length?ms:null})()});
     const top=Object.entries(W).filter(([a,b])=>b>0&&LAB[a]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([a])=>LAB[a]);
     return{name,para,alt:!!alt,items:orderItems(r.items,k,rl),boots:r.boots,tot:r.tot,focus:top,rp,opts:RALT[k]||[],start:startItem(k,rl),upg:upgradeFor(D,k,rl,bi,c),bootAt:(rl==='S'||k==='tkp')?0:1};
   };
@@ -395,7 +419,10 @@ const el=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=
 function render(m,api){
   const c=m.card,w=el('div','qz lol');
   const msg=el('div','qz-head','Cargando datos del parche…');w.appendChild(msg);
-  load().then(D=>{msg.remove();draw(w,m,api,D)}).catch(()=>{msg.textContent='No pude cargar los datos de Riot (¿sin conexión?). Inténtalo de nuevo con internet.';w.appendChild(mkb('Reintentar','btn alt',()=>{MEM=null;api.update()}))});
+  load().then(async D=>{
+    if(c.pending&&!c.champ){const t=c.pending,id=findChamp(t,D),hit=id&&D.champs.find(x=>x.id===id),r0=parseRole(t);c.pending=null;if(r0)c.rl=r0;if(hit){c.champ=hit.id;c.bi=c.more?5:0}}
+    if(c.champ)await champDetail(D,c.champ);
+    msg.remove();draw(w,m,api,D)}).catch(()=>{msg.textContent='No pude cargar los datos de Riot (¿sin conexión?). Inténtalo de nuevo con internet.';w.appendChild(mkb('Reintentar','btn alt',()=>{MEM=null;api.update()}))});
   return w;
 }
 function mkb(l,cls,fn){const b=el('button',cls,l);b.type='button';b.onclick=fn;return b}
@@ -454,7 +481,7 @@ function draw(w,m,api,D){
   const mk2=(it,i)=>({it,n:String(i+1)});
   b.items.forEach((it,i)=>{if(b.boots&&i===b.bootAt&&b.bootAt===0)seq.push({it:b.boots,n:'👟',kind:'boots'});seq.push(mk2(it,i));if(b.boots&&i===b.bootAt-1)seq.push({it:b.boots,n:'👟',kind:'boots'})});
   if(b.boots&&!seq.some(x=>x.kind==='boots'))seq.push({it:b.boots,n:'👟',kind:'boots'});
-  seq.forEach(sq=>{const x=el('div','lol-it'+(sq.kind==='boots'?' boots':sq.kind==='start'||sq.kind==='upg'?' start':''));const ic=el('div','lol-ico');ic.dataset.n=sq.n;ic.appendChild(icon(D,'item',sq.it.id));x.appendChild(ic);const tx=el('div','lol-itx');tx.appendChild(el('span',null,sq.it.n));if(sq.kind)tx.appendChild(el('small',null,sq.kind==='start'?(b.upg?'Inicio · evoluciona a '+b.upg.n:'Inicio'):sq.kind==='upg'?'⬆ Evolución del Atlas':'Botas'));x.appendChild(tx);row.appendChild(x)});
+  seq.forEach(sq=>{const x=el('div','lol-it'+(sq.kind==='boots'?' boots':sq.kind==='start'||sq.kind==='upg'?' start':''));const ic=el('div','lol-ico');ic.dataset.n=sq.n;ic.appendChild(icon(D,'item',sq.it.id));x.appendChild(ic);const tx=el('div','lol-itx');tx.appendChild(el('span',null,sq.it.n));if(!sq.kind&&/^Seraph's Embrace$/i.test(sq.it.e))tx.appendChild(el('small',null,'Compra Báculo del Arcángel y evoluciona'));if(!sq.kind&&/^Muramana$/i.test(sq.it.e))tx.appendChild(el('small',null,'Compra Manamune y evoluciona'));if(sq.kind)tx.appendChild(el('small',null,sq.kind==='start'?(b.upg?'Inicio · evoluciona a '+b.upg.n:'Inicio'):sq.kind==='upg'?'⬆ Evolución del Atlas':'Botas'));x.appendChild(tx);row.appendChild(x)});
   w.appendChild(row);
   w.appendChild(el('div','lol-meta',b.start.tip));
   if(b.upg)w.appendChild(el('div','lol-note','⬆ Evoluciona tu Atlas a '+b.upg.n+'. '+b.upg.tip));
