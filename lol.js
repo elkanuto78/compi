@@ -1,8 +1,44 @@
 /* Builds de League of Legends para Compi: lee en vivo los datos oficiales del parche (Data Dragon) y arma 5 builds por campeón. */
 (function(){
 const DD='https://ddragon.leagueoflegends.com';
-const CK='compi_lol_v2';
+const CK='compi_lol_v3';
 const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+const ROLEMAP={Aatrox:'T',Ahri:'M',Akali:'MT',Akshan:'MA',Alistar:'S',Ambessa:'T',Amumu:'J',Anivia:'M',Annie:'MS',Aphelios:'A',Ashe:'AS',AurelionSol:'M',Aurora:'MT',Azir:'M',Bard:'S',Belveth:'J',Blitzcrank:'S',Brand:'SMJ',Braum:'S',Briar:'J',Caitlyn:'A',Camille:'T',Cassiopeia:'M',Chogath:'TM',Corki:'M',Darius:'T',Diana:'JM',Draven:'A',DrMundo:'TJ',Ekko:'JM',Elise:'J',Evelynn:'J',Ezreal:'A',Fiddlesticks:'J',Fiora:'T',Fizz:'M',Galio:'MS',Gangplank:'T',Garen:'T',Gnar:'T',Gragas:'JT',Graves:'J',Gwen:'T',Hecarim:'J',Heimerdinger:'M',Hwei:'M',Illaoi:'T',Irelia:'TM',Ivern:'J',Janna:'S',JarvanIV:'J',Jax:'TJ',Jayce:'TM',Jhin:'A',Jinx:'A',Kaisa:'A',Kalista:'A',Karma:'SM',Karthus:'JM',Kassadin:'M',Katarina:'M',Kayle:'TM',Kayn:'J',Kennen:'T',Khazix:'J',Kindred:'J',Kled:'T',KogMaw:'A',KSante:'T',Leblanc:'M',LeeSin:'J',Leona:'S',Lillia:'J',Lissandra:'M',Lucian:'AM',Lulu:'S',Lux:'SM',Malphite:'TS',Malzahar:'M',Maokai:'TSJ',MasterYi:'J',Mel:'MS',Milio:'S',MissFortune:'A',MonkeyKing:'TJ',Mordekaiser:'T',Morgana:'SM',Naafiri:'MJ',Nami:'S',Nasus:'T',Nautilus:'S',Neeko:'MS',Nidalee:'J',Nilah:'A',Nocturne:'J',Nunu:'J',Olaf:'TJ',Orianna:'M',Ornn:'T',Pantheon:'ST',Poppy:'TJS',Pyke:'S',Qiyana:'M',Quinn:'T',Rakan:'S',Rammus:'J',RekSai:'J',Rell:'S',Renata:'S',Renekton:'T',Rengar:'JT',Riven:'T',Rumble:'TM',Ryze:'MT',Samira:'A',Sejuani:'J',Senna:'SA',Seraphine:'SMA',Sett:'TS',Shaco:'J',Shen:'T',Shyvana:'J',Singed:'T',Sion:'T',Sivir:'A',Skarner:'J',Smolder:'A',Sona:'S',Soraka:'S',Swain:'MS',Sylas:'MJ',Syndra:'M',TahmKench:'TS',Taliyah:'JM',Talon:'MJ',Taric:'S',Teemo:'T',Thresh:'S',Tristana:'AM',Trundle:'JT',Tryndamere:'T',TwistedFate:'M',Twitch:'A',Udyr:'JT',Urgot:'T',Varus:'A',Vayne:'AT',Veigar:'M',Velkoz:'SM',Vex:'M',Vi:'J',Viego:'J',Viktor:'M',Vladimir:'MT',Volibear:'JT',Warwick:'J',Xayah:'A',Xerath:'SM',XinZhao:'J',Yasuo:'MA',Yone:'MT',Yorick:'T',Yunara:'A',Yuumi:'S',Zac:'J',Zed:'M',Zeri:'A',Ziggs:'MA',Zilean:'SM',Zoe:'M',Zyra:'S'};
+const EXTRA={Chogath:['cho gath'],Khazix:['kha zix'],RekSai:['rek sai'],Velkoz:['vel koz'],KogMaw:['kog maw'],KSante:['k sante','ksante'],Belveth:['bel veth'],Kaisa:['kai sa'],Leblanc:['le blanc'],TahmKench:['tahm kench','kench'],Nunu:['willump','nunu y willump'],MonkeyKing:['wukong','sun wukong'],DrMundo:['mundo','dr mundo'],JarvanIV:['jarvan','jarvan iv','j4'],TwistedFate:['twisted fate','tf'],MasterYi:['master yi','yi'],AurelionSol:['aurelion sol','asol'],Fiddlesticks:['fiddlesticks','fiddle'],Vi:['vi'],MissFortune:['miss fortune','mf'],XinZhao:['xin zhao','xin']};
+const RL={T:'Top',J:'Jungla',M:'Mid',A:'ADC',S:'Soporte'};
+const SHORT=/^.{1,2}$/;
+let ALIAS=null;
+function aliasList(D){
+  if(!ALIAS){ALIAS=[];for(const id in ROLEMAP){const sp=id.replace(/([a-z])([A-Z])/g,'$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g,'$1 $2');const s=new Set([norm(sp),norm(id)]);(EXTRA[id]||[]).forEach(a=>s.add(a));ALIAS.push([id,[...s]])}}
+  if(D&&D.champs){const have=new Set(ALIAS.map(a=>a[0]));D.champs.forEach(c=>{if(!have.has(c.id)){ALIAS.push([c.id,[norm(c.name),norm(c.id)]]);have.add(c.id)}})}
+  return ALIAS;
+}
+function findChamp(t,D){
+  const T=' '+t+' ';let best=null,bl=0;
+  for(const [id,names] of aliasList(D))for(const a of names){
+    if(!a)continue;
+    const ok=SHORT.test(a)?new RegExp('\\b(de|del|con|para|sobre|a|el|la) '+a+'\\b').test(t):T.includes(' '+a+' ');
+    if(ok&&a.length>bl){best=id;bl=a.length}
+  }
+  return best;
+}
+function parseRole(t){
+  if(/\btop\b(?!\s*\d)/.test(t)&&!/\btop (de|del)\b/.test(t)||/\btoplane\b/.test(t))return 'T';
+  if(/\b(jungla|jungle|jungler|jg|jungl\w*)\b/.test(t))return 'J';
+  if(/\b(mid|midlane|mid lane|medio|centro)\b/.test(t))return 'M';
+  if(/\b(adc|ad carry|bot|botlane|bot lane|tirador)\b/.test(t))return 'A';
+  if(/\b(supp?|support|soporte)\b/.test(t))return 'S';
+  return null;
+}
+function defRoles(c){
+  const r=ROLEMAP[c.id];if(r)return r.split('');
+  const tg=c.tags||[],p=tg[0];
+  if(p==='Marksman')return['A'];
+  if(p==='Mage')return tg.includes('Support')?['M','S']:['M'];
+  if(p==='Assassin')return['M'];
+  if(p==='Support')return tg.includes('Mage')?['S','M']:['S'];
+  return['T'];
+}
 const LAB={ad:'Daño de ataque',ap:'Poder de habilidad',as:'Vel. de ataque',crit:'Crítico',armor:'Armadura',mr:'Res. mágica',hp:'Vida',mana:'Maná',haste:'Aceleración de habilidad',leth:'Letalidad',arpen:'Pen. de armadura',mpen:'Pen. mágica',mpenp:'Pen. mágica %',ls:'Robo de vida',ov:'Omnivampirismo',ms:'Vel. de movimiento',heal:'Poder de cura y escudo',ten:'Tenacidad',hpreg:'Regen. de vida',mreg:'Regen. de maná'};
 const GOLD={ad:35,ap:21.75,as:2.5,crit:40,armor:20,mr:18,hp:2.67,mana:1.4,haste:26.7,leth:5.1,arpen:38,mpen:31,mpenp:38,ls:27.5,ov:36,ms:12,msp:39,heal:30,ten:20,hpreg:1.8,mreg:1.2};
 const LMAP={'attack damage':'ad','ability power':'ap','attack speed':'as','critical strike chance':'crit','armor':'armor','magic resist':'mr','health':'hp','mana':'mana','ability haste':'haste','lethality':'leth','armor penetration':'arpen','life steal':'ls','omnivamp':'ov','base health regen':'hpreg','base mana regen':'mreg','heal and shield power':'heal','tenacity':'ten','slow resist':'ten'};
@@ -41,6 +77,22 @@ function trimChamps(j){
 }
 let MEM=null;
 const readCache=()=>{try{return JSON.parse(localStorage.getItem(CK)||'null')}catch(e){return null}};
+function trimRunes(j){return(j||[]).map(t=>({k:t.key,n:t.name,i:t.icon,s:t.slots.map(sl=>sl.runes.map(r=>({k:r.key,n:r.name,i:r.icon,d:String(r.shortDesc||'').replace(/<[^>]+>/g,'')})))}))}
+let RIDX=null,RIDXV=null;
+function rune(D,key){
+  if(!D.runes)return null;
+  if(RIDXV!==D.runes){RIDX={};D.runes.forEach(t=>t.s.forEach(sl=>sl.forEach(r=>{RIDX[r.k]=r})));RIDXV=D.runes}
+  return RIDX[key]||null;
+}
+async function loadRunes(D){
+  if(D.runes&&D.runes.length)return D.runes;
+  try{
+    const j=await jf(`${DD}/cdn/${D.v}/data/es_MX/runesReforged.json`);
+    D.runes=trimRunes(j);
+    try{localStorage.setItem(CK,JSON.stringify(D))}catch(e){}
+  }catch(e){}
+  return D.runes||null;
+}
 async function jf(u){const r=await fetch(u);if(!r.ok)throw new Error('http '+r.status);return r.json()}
 async function load(force){
   if(MEM&&!force)return MEM;
@@ -50,7 +102,8 @@ async function load(force){
     const vs=await jf(DD+'/api/versions.json'),v=vs[0];
     if(c&&c.v===v&&c.champs&&c.items){c.at=Date.now();try{localStorage.setItem(CK,JSON.stringify(c))}catch(e){}MEM=c;return c}
     const [ch,ien,ies]=await Promise.all([jf(`${DD}/cdn/${v}/data/es_MX/champion.json`),jf(`${DD}/cdn/${v}/data/en_US/item.json`),jf(`${DD}/cdn/${v}/data/es_MX/item.json`).catch(()=>null)]);
-    const d={v,at:Date.now(),champs:trimChamps(ch),items:trimItems(ien,ies)};
+    const rj=await jf(`${DD}/cdn/${v}/data/es_MX/runesReforged.json`).catch(()=>null);
+    const d={v,at:Date.now(),champs:trimChamps(ch),items:trimItems(ien,ies),runes:rj?trimRunes(rj):null};
     try{localStorage.setItem(CK,JSON.stringify(d))}catch(e){}
     MEM=d;return d;
   }catch(e){if(c&&c.champs){MEM=c;return c}throw e}
@@ -164,33 +217,72 @@ function pickBuild(items,boots,W,opt){
   if(bb)for(const k in bb.s)tot[k]=(tot[k]||0)+bb.s[k];
   return{items:chosen,boots:bb,tot};
 }
-function builds(c,D){
+const SH_AD=['Fuerza adaptativa','Fuerza adaptativa','Vida escalable'],SH_AS=['Vel. de ataque','Fuerza adaptativa','Vida escalable'],SH_TK=['Fuerza adaptativa','Armadura','Vida escalable'],SH_MG=['Fuerza adaptativa','Fuerza adaptativa','Vida escalable'];
+const PAGES={
+lt:{t:'Precision',k:'LethalTempo',a:['Triumph','LegendAlacrity','CoupDeGrace'],t2:'Domination',b:['TasteOfBlood','TreasureHunter'],sh:SH_AS},
+pta:{t:'Precision',k:'PressTheAttack',a:['Triumph','LegendAlacrity','CutDown'],t2:'Inspiration',b:['MagicalFootwear','CosmicInsight'],sh:SH_AS},
+fleet:{t:'Precision',k:'FleetFootwork',a:['Triumph','LegendBloodline','LastStand'],t2:'Resolve',b:['BonePlating','Unflinching'],sh:SH_AS},
+conq:{t:'Precision',k:'Conqueror',a:['Triumph','LegendAlacrity','LastStand'],t2:'Resolve',b:['BonePlating','Unflinching'],sh:SH_AD},
+hail:{t:'Domination',k:'HailOfBlades',a:['SuddenImpact','GrislyMementos','UltimateHunter'],t2:'Precision',b:['Triumph','CoupDeGrace'],sh:SH_AD},
+elec:{t:'Domination',k:'Electrocute',a:['SuddenImpact','GrislyMementos','TreasureHunter'],t2:'Precision',b:['LegendAlacrity','CoupDeGrace'],sh:SH_AD},
+elecAP:{t:'Domination',k:'Electrocute',a:['TasteOfBlood','GrislyMementos','UltimateHunter'],t2:'Sorcery',b:['Transcendence','Scorch'],sh:SH_MG},
+dh:{t:'Domination',k:'DarkHarvest',a:['TasteOfBlood','GrislyMementos','UltimateHunter'],t2:'Sorcery',b:['Transcendence','GatheringStorm'],sh:SH_MG},
+comet:{t:'Sorcery',k:'ArcaneComet',a:['ManaflowBand','Transcendence','Scorch'],t2:'Inspiration',b:['BiscuitDelivery','CosmicInsight'],sh:SH_MG},
+phase:{t:'Sorcery',k:'PhaseRush',a:['NimbusCloak','Celerity','GatheringStorm'],t2:'Domination',b:['TasteOfBlood','UltimateHunter'],sh:SH_MG},
+aery:{t:'Sorcery',k:'SummonAery',a:['ManaflowBand','Transcendence','GatheringStorm'],t2:'Resolve',b:['BonePlating','Revitalize'],sh:SH_TK},
+aeryR:{t:'Sorcery',k:'SummonAery',a:['NimbusCloak','Transcendence','GatheringStorm'],t2:'Resolve',b:['BonePlating','Unflinching'],sh:SH_TK},
+glacial:{t:'Inspiration',k:'GlacialAugment',a:['MagicalFootwear','BiscuitDelivery','CosmicInsight'],t2:'Sorcery',b:['Celerity','GatheringStorm'],sh:SH_TK},
+grasp:{t:'Resolve',k:'GraspOfTheUndying',a:['Demolish','Conditioning','Overgrowth'],t2:'Precision',b:['LegendAlacrity','LastStand'],sh:SH_TK},
+aftershock:{t:'Resolve',k:'Aftershock',a:['FontOfLife','BonePlating','Unflinching'],t2:'Inspiration',b:['MagicalFootwear','BiscuitDelivery'],sh:SH_TK},
+guardian:{t:'Resolve',k:'Guardian',a:['FontOfLife','Conditioning','Revitalize'],t2:'Sorcery',b:['Transcendence','Waterwalking'],sh:SH_TK}
+};
+const RP={
+adm:['lt','hail','lt','pta','fleet'],apm:['comet','elecAP','comet','aeryR','aery'],ada:['elec','lt','hail','conq','conq'],apa:['dh','phase','dh','aeryR','aeryR'],
+adf:['conq','conq','conq','grasp','fleet'],apf:['phase','comet','comet','grasp','phase'],tkp:['grasp','grasp','aftershock','conq','guardian'],
+sup:['aery','guardian','comet','aftershock','aery'],supad:['guardian','guardian','elec','aftershock','guardian']
+};
+const SUPAD={n:'Soporte (daño físico)',B:PROFILES.sup.B.map(([a,b,W])=>{const w={...W};if('ap' in w){w.ad=w.ap;w.ap=-1}return[a,b,w]})};
+PROFILES.supad=SUPAD;
+const START={T:'Hechizos: Salto + Teletransporte (o Ignición). Inicio: Escudo/Hoja de Doran + poción.',J:'Hechizos: Salto + Aplastar. Inicio: objeto de jungla (mascota) + pociones.',M:'Hechizos: Salto + Ignición (o Barrera / Teletransporte). Inicio: Anillo/Hoja de Doran + poción.',A:'Hechizos: Salto + Curar (o Barrera). Inicio: Hoja de Doran + poción.',S:'Hechizos: Salto + Agotamiento, Ignición o Curar. Inicio: objeto de soporte + guardián de visión.'};
+function profKey(c,rl){
+  const k=classify(c),ap=AP_OVER.has(c.id)||(!AD_OVER.has(c.id)&&c.mag>c.att);
+  if(rl==='S'){if(k==='sup'||k==='tkp')return k;return ap?'sup':'supad'}
+  if(k==='sup')return ap?'apm':'adm';
+  return k;
+}
+function tweak(W,rl){
+  const w={...W};
+  if(rl==='T'){w.hp=(w.hp||0)+.2;w.armor=(w.armor||0)+.15;w.mr=(w.mr||0)+.12}
+  else if(rl==='J'){w.haste=(w.haste||0)+.2;w.hp=(w.hp||0)+.12}
+  return w;
+}
+function builds(c,D,rl){
+  rl=rl||defRoles(c)[0];
   const items=D.items.filter(i=>!i.b),boots=D.items.filter(i=>i.b);
-  const k=classify(c),P=PROFILES[k];
-  const list=P.B.map(x=>x.slice());
-  if(Math.abs(c.att-c.mag)<=2&&c.att>=6&&c.mag>=6&&(k==='adm'||k==='ada'||k==='adf'||k==='apm'||k==='apa'||k==='apf'))list[4]=HYB;
+  const k=profKey(c,rl),P=PROFILES[k];
+  const list=P.B.map((x,i)=>[x[0],x[1],x[2],RP[k][i]]);
+  if(Math.abs(c.att-c.mag)<=2&&c.att>=6&&c.mag>=6&&(k==='adm'||k==='ada'||k==='adf'||k==='apm'||k==='apa'||k==='apf')){list[4]=[HYB[0],HYB[1],HYB[2],'conq']}
   const ENCH=/Moonstone|Flowing Water|Ardent|Redemption|Mikael|Shurelya|Imperial Mandate|Locket|Knight's Vow|Echoes of Helia|Dawncore/i;
-  const res=list.map(([name,para,W],bi)=>{
-    const r=pickBuild(items,boots,W,{sup:k==='sup',bonus:k==='sup'&&bi<2?ENCH:null});
+  const res=list.map(([name,para,W0,rp],bi)=>{
+    const W=tweak(W0,rl);
+    const r=pickBuild(items,boots,W,{sup:rl==='S',bonus:(k==='sup')&&bi<2?ENCH:null});
     const top=Object.entries(W).filter(([a,b])=>b>0&&LAB[a]).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([a])=>LAB[a]);
-    return{name,para,items:r.items,boots:r.boots,tot:r.tot,focus:top};
+    return{name,para,items:r.items,boots:r.boots,tot:r.tot,focus:top,rp};
   });
-  return{cls:P.n,builds:res};
+  return{cls:P.n,builds:res,rl};
 }
 const slug=c=>c.id==='MonkeyKing'?'wukong':/^nunu/i.test(c.id)?'nunu':c.id==='Renata'?'renata':c.id.toLowerCase();
 const ROLES=[['','Todos'],['Assassin','Asesinos'],['Fighter','Luchadores'],['Mage','Magos'],['Marksman','Tiradores'],['Support','Soportes'],['Tank','Tanques']];
 /* ---------- intención en el chat ---------- */
 function handle(t){
   const lol=/\b(league of legends|league|lol|wild rift|campeon(es)?|champions?|summoner|invocador)\b/.test(t);
-  const bw=/\b(builds?|objetos|items?|itemizacion|que compro|que comprar|build order)\b/.test(t);
-  let named=false;
-  if(bw||/\b(league of legends|\blol\b)\b/.test(t)){
-    const c=MEM||readCache();
-    if(c&&c.champs)named=c.champs.some(x=>{const n=norm(x.name);return n.length>=3&&new RegExp('\\b'+n+'\\b').test(t)});
-  }
-  const pick=(lol&&(bw||/\b(analiza|mejor(es)?|top|meta|guia|parche)\b/.test(t)))||(bw&&named)||(/\b(league of legends|lol)\b/.test(t)&&/\b(analiz|mejor|meta|guia|parche|builds?)\w*/.test(t));
+  const bw=/\b(build\w*|objetos|items?|itemizacion|runas?|runes?|que compro|que comprar|como armo|que le pongo)\b/.test(t);
+  const c0=MEM||readCache();
+  const named=findChamp(t,c0);
+  const pick=(named&&bw)||(lol&&(bw||/\b(analiza|mejor(es)?|top|meta|guia|parche)\b/.test(t)))||(/\b(league of legends|lol)\b/.test(t)&&/\b(analiz|mejor|meta|guia|parche|builds?)\w*/.test(t));
   if(!pick)return null;
-  return{text:'Voy a leer los datos oficiales del parche actual para armarte 5 builds. Elige un campeón (o búscalo por nombre).',card:{type:'lol',champ:null,bi:0,role:'',pending:t}};
+  const nm=named&&c0&&c0.champs&&c0.champs.find(x=>x.id===named);
+  return{text:named?'Voy a leer los datos oficiales del parche y armarte las builds y runas de '+(nm?nm.name:named)+'. Puedes cambiar el rol y la build abajo.':'Voy a leer los datos oficiales del parche actual para armarte 5 builds con sus runas. Elige un campeón (o búscalo por nombre).',card:{type:'lol',champ:null,bi:0,role:'',rl:null,pending:t}};
 }
 /* ---------- interfaz ---------- */
 const el=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e};
@@ -207,7 +299,8 @@ function draw(w,m,api,D){
   if(D.champs.length<20||D.items.filter(i=>!i.b).length<15){w.appendChild(el('div','lol-meta','Los datos del parche llegaron incompletos. Inténtalo de nuevo más tarde.'));w.appendChild(mkb('Reintentar','btn alt',()=>{MEM=null;try{localStorage.removeItem(CK)}catch(e){}api.update()}));return}
   if(c.pending&&!c.champ){
     const t=c.pending;c.pending=null;
-    const hit=D.champs.filter(x=>{const n=norm(x.name);return n.length>=3&&new RegExp('\\b'+n+'\\b').test(t)}).sort((a,b)=>b.name.length-a.name.length)[0];
+    const id=findChamp(t,D),hit=id&&D.champs.find(x=>x.id===id);
+    const r0=parseRole(t);if(r0)c.rl=r0;
     if(hit){c.champ=hit.id;c.bi=0}
   }
   const ch=c.champ&&D.champs.find(x=>x.id===c.champ);
@@ -228,11 +321,16 @@ function draw(w,m,api,D){
     w.appendChild(inp);w.appendChild(chips);w.appendChild(grid);w.appendChild(meta);fill();
     return;
   }
-  const B=builds(ch,D);
+  const usual=defRoles(ch);
+  const rl=c.rl&&RL[c.rl]?c.rl:usual[0];
+  const B=builds(ch,D,rl);
   const top=el('div','lol-top');
   top.appendChild(icon(D,'champion',ch.id,'lol-cbig'));
   const tt=el('div');tt.appendChild(el('div','qz-q',ch.name));tt.appendChild(el('div','lol-meta',`${ch.title} · ${ch.tags.join(' / ')} · perfil: ${B.cls}`));top.appendChild(tt);
   w.appendChild(top);
+  const rls=el('div','qz-menu');
+  Object.keys(RL).forEach(k=>{const b0=el('button','chip'+(k===rl?' on':''),RL[k]+(usual.includes(k)?' ★':''));b0.type='button';b0.title=usual.includes(k)?'Rol habitual de este campeón':'Rol poco habitual';b0.onclick=()=>{c.rl=k;c.bi=0;api.update()};rls.appendChild(b0)});
+  w.appendChild(rls);
   const tabs=el('div','qz-menu');
   B.builds.forEach((b,i)=>{const t=el('button','chip'+(i===c.bi?' on':''),`${i+1}`);t.type='button';t.title=b.name;t.onclick=()=>{c.bi=i;api.update()};tabs.appendChild(t)});
   w.appendChild(tabs);
@@ -243,6 +341,26 @@ function draw(w,m,api,D){
   b.items.forEach((it,i)=>{const x=el('div','lol-it');x.appendChild(icon(D,'item',it.id));x.appendChild(el('span',null,`${i+1}. ${it.n}`));row.appendChild(x)});
   if(b.boots){const x=el('div','lol-it');x.appendChild(icon(D,'item',b.boots.id));x.appendChild(el('span',null,'Botas: '+b.boots.n));row.appendChild(x)}
   w.appendChild(row);
+  const rb=el('div','lol-runes');w.appendChild(rb);
+  const pg=PAGES[b.rp];
+  if(pg){
+    const fillRunes=()=>{
+      rb.innerHTML='';
+      const rr=(key)=>rune(D,key);
+      const main=pg&&rr(pg.k);
+      if(!main){rb.appendChild(el('div','lol-meta','Runas no disponibles ahora mismo (sin datos de Riot).'));return}
+      rb.appendChild(el('div','qz-q','Runas'));
+      const cols=el('div','lol-rcols');
+      const tn=k=>{const t=D.runes.find(x=>x.k===k);return t?t.n:k};
+      const mk=(r,big)=>{const d=el('div','lol-rn'+(big?' big':''));const im=el('img',big?'lol-rbig':'lol-ric');im.alt='';im.loading='lazy';im.src=`${DD}/cdn/img/${r.i}`;im.onerror=()=>{im.style.visibility='hidden'};d.appendChild(im);d.appendChild(el('span',null,r.n));d.title=r.d||r.n;return d};
+      const c1=el('div','lol-rcol');c1.appendChild(el('div','lol-rt',tn(pg.t)));c1.appendChild(mk(main,true));pg.a.forEach(k=>{const r=rr(k);if(r)c1.appendChild(mk(r))});
+      const c2=el('div','lol-rcol');c2.appendChild(el('div','lol-rt',tn(pg.t2)));pg.b.forEach(k=>{const r=rr(k);if(r)c2.appendChild(mk(r))});
+      cols.appendChild(c1);cols.appendChild(c2);rb.appendChild(cols);
+      rb.appendChild(el('div','lol-meta','Fragmentos: '+pg.sh.join(' · ')+'.'));
+    };
+    if(D.runes)fillRunes();else{rb.appendChild(el('div','lol-meta','Cargando runas…'));loadRunes(D).then(fillRunes)}
+  }
+  w.appendChild(el('div','lol-meta',START[rl]));
   const T=b.tot,parts=[];
   [['ad','DA'],['ap','PH'],['as','VA %'],['crit','Crít %'],['armor','Arm'],['mr','RM'],['hp','Vida'],['haste','Acel.'],['leth','Letal.']].forEach(([k,l])=>{if(T[k])parts.push(`${l} ${Math.round(T[k])}`)});
   w.appendChild(el('div','lol-meta','Prioriza: '+b.focus.join(', ')+'. Con los 5 objetos y botas: '+parts.join(' · ')+'.'));
@@ -252,5 +370,5 @@ function draw(w,m,api,D){
   w.appendChild(el('div','lol-meta','Builds generadas automáticamente con las estadísticas reales de los objetos del parche y el rol del campeón; no son porcentajes de victoria. Para el meta exacto usa los enlaces.'));
   w.appendChild(mkb('← Otro campeón','btn alt',()=>{c.champ=null;api.update()}));
 }
-window.COMPI_LOL={handle,render,_t:{parseStats,trimItems,trimChamps,builds,classify,norm}};
+window.COMPI_LOL={handle,render,_t:{parseStats,trimItems,trimChamps,builds,classify,norm,findChamp,parseRole,defRoles,trimRunes,PAGES,RP}};
 })();
