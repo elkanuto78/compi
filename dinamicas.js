@@ -100,6 +100,11 @@ function handle(t){
   if(/\brompehielo/.test(t)||/\b(pregunta|conversacion)\b.*\b(para conocer|rompe hielo)/.test(t))return{text:pick(ICE),card:again('rompehielos','Otra pregunta')};
   if(/\breto\b.*\b(dia|hoy|diario)\b|\bdame un reto\b|\bun reto\b/.test(t))return{text:pick(RETOS),card:again('reto del dia','Otro reto')};
   if(/\bdinamica\w*\b.*\b(grupo|equipo|clase|trabajo)\b|\b(grupo|equipo|clase)\b.*\bdinamica\w*\b/.test(t))return{text:pick(GRUPO),card:again('dinamica de grupo','Otra dinámica')};
+  if(window.COMPI_LESSONS&&(/\b(ensena\w*|aprender|leccion\w*|curso|tutorial|practicar|clases?|empezar|estudiar)\b/.test(t)&&/\b(program\w*|python|javascript|js|sql|pseint|html|css|algoritm\w*|codigo|codear|bases? de datos)\b/.test(t)||/\b(dame|quiero|hazme|ponme)\b.*\bejercicios?\b.*\b(program\w*|python|javascript|sql|codigo)\b/.test(t))&&!/\b(que es|como (hago|se hace|puedo hacer|creo))\b/.test(t)){
+    const cs=[['python',/python/],['js',/javascript|\bjs\b/],['sql',/\bsql\b|bases? de datos/],['pseint',/pseint|algoritm|pseudocodigo/],['web',/html|css|\bweb\b/]];
+    for(const [k,re] of cs)if(re.test(t))return{text:`Empecemos: ${COMPI_LESSONS[k].name}. Cada lección tiene explicación, un ejemplo${COMPI_LESSONS[k].run?' que puedes editar y ejecutar aquí mismo':''} y una pregunta para comprobar.`,card:{type:'lesson',course:k,i:0,sel:{},out:'',code:COMPI_LESSONS[k].list[0].code}};
+    return{text:'¡Genial! Programar se aprende practicando. Elige un curso y avanza a tu ritmo:',card:{type:'menu',btns:Object.keys(COMPI_LESSONS).map(k=>[COMPI_LESSONS[k].emoji+' '+COMPI_LESSONS[k].name,'curso de '+({python:'python',js:'javascript',sql:'sql',pseint:'pseint',web:'html y css'}[k])])}};
+  }
   const asks=/\b(dinamica\w*|trivia|quiz+|cuestionario|evalua(?:me|r)|ponme a prueba|ponerme a prueba|pon(?:me)? a prueba|preguntas?|juegos?)\b/.test(t);
   if(!asks)return null;
   if(/\b(preguntas?|juegos?)\b/.test(t)&&!/\b(dinamica\w*|trivia|quiz+|cuestionario|evalua\w*|a prueba|dame|dime|hazme|ponme|quiero|jugar|juguemos)\b/.test(t))return null;
@@ -112,10 +117,96 @@ function handle(t){
 }
 const MSG=[[5,'¡Perfecto! Puntaje máximo. 🏆'],[4,'¡Muy bien! Casi perfecto.'],[3,'Bien hecho, vas por buen camino.'],[2,'Nada mal; con otra ronda mejoras.'],[0,'Es práctica, no examen. Repasa y vuelve a intentar, ¡tú puedes!']];
 function resultMsg(sc,tot){const r=tot?sc/tot:0;return r>=1?MSG[0][1]:r>=.8?MSG[1][1]:r>=.6?MSG[2][1]:r>=.4?MSG[3][1]:MSG[4][1]}
+
+const loadScript=u=>new Promise((ok,no)=>{const e=document.createElement('script');e.src=u;e.onload=ok;e.onerror=()=>no(new Error('carga'));document.head.appendChild(e)});
+function runJS(code){
+  return new Promise(res=>{
+    const pre='const __o=[];const __f=(...a)=>__o.push(a.map(x=>{try{return typeof x==="object"&&x!==null?JSON.stringify(x):String(x)}catch(e){return String(x)}}).join(" "));const console={log:__f,error:__f,warn:__f,info:__f};';
+    if(typeof Worker==='undefined'||typeof Blob==='undefined'||typeof URL==='undefined'||!URL.createObjectURL){
+      try{res(new Function(pre+code+';return __o.join("\\n")')()||'(sin salida: usa console.log para mostrar algo)')}catch(e){res('Error: '+e.message)}return;
+    }
+    const src='onmessage=function(e){try{var r=(new Function(e.data.pre+e.data.code+";return __o.join(String.fromCharCode(10))"))();postMessage({o:r})}catch(err){postMessage({e:String(err)})}}';
+    let w;try{w=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})))}catch(e){res('No se pudo ejecutar aquí.');return}
+    const to=setTimeout(()=>{w.terminate();res('Se detuvo: el código tardó demasiado (¿bucle infinito?).')},3000);
+    w.onmessage=ev=>{clearTimeout(to);w.terminate();res(ev.data.e?'Error: '+ev.data.e:(ev.data.o||'(sin salida: usa console.log para mostrar algo)'))};
+    w.onerror=ev=>{clearTimeout(to);w.terminate();res('Error: '+(ev.message||'desconocido'))};
+    w.postMessage({pre,code});
+  });
+}
+let PY=null;
+async function runPy(code,note){
+  try{
+    if(!PY){note('Cargando Python (unos 10 MB, solo la primera vez)…');await loadScript('https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js');PY=await window.loadPyodide()}
+    const out=[];PY.setStdout({batched:x=>out.push(x)});PY.setStderr({batched:x=>out.push(x)});
+    await Promise.race([PY.runPythonAsync(code),new Promise((_,no)=>setTimeout(()=>no(new Error('tardó demasiado')),8000))]);
+    return out.join('\n')||'(sin salida: usa print() para mostrar algo)';
+  }catch(e){
+    const m=String(e.message||e);
+    return /carga|fetch|network|Failed/i.test(m)?'No pude cargar Python (¿sin conexión?). Prueba el código en tu computadora o en onlinegdb.com.':'Error: '+m.split('\n').filter(Boolean).slice(-3).join('\n');
+  }
+}
+function renderLesson(m,api){
+  const c=m.card,K=COMPI_LESSONS[c.course],w=document.createElement('div');w.className='qz';
+  if(!K)return w;
+  const n=K.list.length;
+  if(c.i>=n){
+    const s=document.createElement('div');s.className='qz-score';s.textContent='🎓';
+    const t=document.createElement('div');t.className='qz-msg';t.textContent=`¡Terminaste «${K.name}»! Aciertos en las preguntas: ${Object.values(c.sel).filter(v=>v.ok).length} de ${n}. Sigue practicando con proyectos pequeños.`;
+    const r=document.createElement('div');r.className='qz-menu';
+    r.appendChild(mkBtn('Más cursos','btn',()=>api.send('curso de programacion')));
+    r.appendChild(mkBtn('Quiz de programación','btn alt',()=>api.send('quiz de programacion')));
+    w.appendChild(s);w.appendChild(t);w.appendChild(r);return w;
+  }
+  const L=K.list[c.i];
+  const head=document.createElement('div');head.className='qz-head';head.textContent=`${K.emoji} ${K.name} · Lección ${c.i+1} de ${n}`;
+  const bar=document.createElement('div');bar.className='qz-bar';const fill=document.createElement('i');fill.style.width=Math.round((c.i+(c.sel[c.i]?1:0))/n*100)+'%';bar.appendChild(fill);
+  const ti=document.createElement('div');ti.className='qz-q';ti.textContent=L.t;
+  const bo=document.createElement('div');bo.className='ls-body';bo.textContent=L.body;
+  w.appendChild(head);w.appendChild(bar);w.appendChild(ti);w.appendChild(bo);
+  if(c.code==null)c.code=L.code;
+  if(K.run){
+    const ta=document.createElement('textarea');ta.className='ls-code';ta.spellcheck=false;ta.value=c.code;ta.rows=Math.min(14,Math.max(4,c.code.split('\n').length+1));
+    ta.addEventListener('input',()=>{c.code=ta.value});
+    ta.addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();const p=ta.selectionStart;ta.value=ta.value.slice(0,p)+'  '+ta.value.slice(ta.selectionEnd);ta.selectionStart=ta.selectionEnd=p+2;c.code=ta.value}});
+    const out=document.createElement('pre');out.className='ls-out';out.textContent=c.out||'La salida aparecerá aquí.';
+    const row=document.createElement('div');row.className='qz-menu';
+    const run=mkBtn('▶ Ejecutar','btn',async()=>{
+      run.disabled=true;out.textContent='Ejecutando…';
+      const note=x=>{out.textContent=x};
+      const res=K.run==='js'?await runJS(c.code):await runPy(c.code,note);
+      c.out=res;api.update();
+    });
+    row.appendChild(run);row.appendChild(mkBtn('↺ Restaurar','btn alt',()=>{c.code=L.code;c.out='';api.update()}));
+    w.appendChild(ta);w.appendChild(row);w.appendChild(out);
+  }else{
+    const pre=document.createElement('pre');pre.className='ls-code ro';pre.textContent=c.code;
+    const row=document.createElement('div');row.className='qz-menu';
+    row.appendChild(mkBtn('Copiar código','btn alt',()=>{try{navigator.clipboard.writeText(L.code)}catch(e){}}));
+    w.appendChild(pre);w.appendChild(row);
+  }
+  if(L.pr){const p=document.createElement('div');p.className='ls-task';p.textContent='💡 Reto: '+L.pr;w.appendChild(p)}
+  const qq=document.createElement('div');qq.className='qz-q';qq.textContent=L.q;w.appendChild(qq);
+  const ans=c.sel[c.i];
+  L.o.forEach((o,k)=>{
+    let cls='qz-opt';if(ans){cls+=' lock';if(k===L.a)cls+=' ok';else if(k===ans.k)cls+=' bad'}
+    const b=mkBtn(o,cls,()=>{if(c.sel[c.i])return;c.sel[c.i]={k,ok:k===L.a};api.update()});
+    if(ans)b.disabled=true;w.appendChild(b);
+  });
+  if(ans){
+    const f=document.createElement('div');f.className='qz-fb '+(ans.ok?'ok':'bad');
+    f.textContent=(ans.ok?'¡Correcto! ':'Casi. La respuesta es «'+L.o[L.a]+'». ')+L.e;w.appendChild(f);
+  }
+  const nav=document.createElement('div');nav.className='qz-menu';
+  if(c.i>0)nav.appendChild(mkBtn('← Anterior','btn alt',()=>{c.i--;c.code=K.list[c.i].code;c.out='';api.update()}));
+  if(ans)nav.appendChild(mkBtn(c.i+1>=n?'Terminar curso':'Siguiente lección →','btn',()=>{c.i++;c.out='';c.code=c.i<n?K.list[c.i].code:null;api.update()}));
+  if(nav.children.length)w.appendChild(nav);
+  return w;
+}
 /* ---------- render ---------- */
 function mkBtn(label,cls,fn){const b=document.createElement('button');b.type='button';b.className=cls;b.textContent=label;b.onclick=fn;return b}
 function render(m,api){
   const c=m.card,w=document.createElement('div');w.className='qz';
+  if(c.type==='lesson')return renderLesson(m,api);
   if(c.type==='menu'){
     const r=document.createElement('div');r.className='qz-menu';
     c.btns.forEach(([l,cmd])=>r.appendChild(mkBtn(l,'chip',()=>api.send(cmd))));
